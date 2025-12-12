@@ -49,8 +49,27 @@ export function Billing({ resetSignal }) {
                 setSettings(settingsRes.data);
             }
 
-            // Transform items - Ensure variants/addons are passed through
-            setItems(itemRes.data.map(i => ({ ...i, type: i.isVeg ? 'Veg' : 'Non-Veg', color: 'bg-white' })));
+            setItems(itemRes.data.map(i => {
+                // Merge Item-specific variants with Group Master variants
+                // Logic: Item variants override Group variants if they share the same name
+                const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
+                const itemVariants = i.Variants || [];
+
+                const variantMap = new Map();
+                // 1. Add group variants first (defaults)
+                groupVariants.forEach(v => variantMap.set(v.name, v));
+                // 2. Add item variants (overrides)
+                itemVariants.forEach(v => variantMap.set(v.name, v));
+
+                const allVariants = Array.from(variantMap.values());
+
+                return {
+                    ...i,
+                    Variants: allVariants,
+                    type: i.isVeg ? 'Veg' : 'Non-Veg',
+                    color: 'bg-white'
+                };
+            }));
         } catch (error) {
             console.error("Failed to load data", error);
         }
@@ -236,7 +255,11 @@ export function Billing({ resetSignal }) {
                                         <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm uppercase tracking-wide">Choose Variation</h4>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {customizingItem.Variants.map(v => {
+                                        {customizingItem.Variants.filter(v => {
+                                            if (orderType === 'delivery') return v.isDelivery !== false;
+                                            if (orderType === 'takeaway') return v.isTakeaway !== false;
+                                            return v.isDineIn !== false; // default dine-in
+                                        }).map(v => {
                                             const isSelected = selectedVariant?.id === v.id;
                                             return (
                                                 <div
@@ -338,24 +361,30 @@ export function Billing({ resetSignal }) {
             <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {/* Order Type Tabs */}
                 <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
-                    <button
-                        onClick={() => setOrderType('dine-in')}
-                        className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'dine-in' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                        <Utensils className="w-4 h-4" /> Dine-in
-                    </button>
-                    <button
-                        onClick={() => setOrderType('delivery')}
-                        className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'delivery' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                        <ShoppingBag className="w-4 h-4" /> Delivery
-                    </button>
-                    <button
-                        onClick={() => setOrderType('takeaway')}
-                        className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'takeaway' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                        <ChefHat className="w-4 h-4" /> Takeaway
-                    </button>
+                    {settings.store_dinein_enabled !== 'false' && (
+                        <button
+                            onClick={() => setOrderType('dine-in')}
+                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'dine-in' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            <Utensils className="w-4 h-4" /> Dine-in
+                        </button>
+                    )}
+                    {settings.store_delivery_enabled !== 'false' && (
+                        <button
+                            onClick={() => setOrderType('delivery')}
+                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'delivery' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            <ShoppingBag className="w-4 h-4" /> Delivery
+                        </button>
+                    )}
+                    {settings.store_takeaway_enabled !== 'false' && (
+                        <button
+                            onClick={() => setOrderType('takeaway')}
+                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'takeaway' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            <ChefHat className="w-4 h-4" /> Takeaway
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex flex-1 overflow-hidden">
