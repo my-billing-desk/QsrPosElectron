@@ -188,6 +188,18 @@ export function Billing({ resetSignal }) {
         finalTotal = subtotal + taxAmount;
     }
 
+    // Apply Rounding based on setting
+    // default is 'false' (do round off) if not set to 'true' explicitly?
+    // User requested: "Yes or No" for accepting decimal.
+    // If accept_decimal == 'true' -> Keep decimal
+    // If accept_decimal != 'true' -> Round Off
+    if (settings.accept_decimal !== 'true') {
+        finalTotal = Math.round(finalTotal);
+    } else {
+        // Keep 2 decimal places fixed for UI consistency, but value is float
+        // Actually, let's keep it as float
+    }
+
     const handleCheckout = async () => {
         if (cart.length === 0) return;
         try {
