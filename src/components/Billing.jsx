@@ -193,8 +193,14 @@ export function Billing({ resetSignal }) {
     // User requested: "Yes or No" for accepting decimal.
     // If accept_decimal == 'true' -> Keep decimal
     // If accept_decimal != 'true' -> Round Off
+
+    let roundOffValue = 0;
+    const rawTotal = finalTotal;
+
     if (settings.accept_decimal !== 'true') {
-        finalTotal = Math.round(finalTotal);
+        const roundedTotal = Math.round(finalTotal);
+        roundOffValue = roundedTotal - finalTotal; // can be + or -
+        finalTotal = roundedTotal;
     } else {
         // Keep 2 decimal places fixed for UI consistency, but value is float
         // Actually, let's keep it as float
@@ -215,6 +221,7 @@ export function Billing({ resetSignal }) {
                 })),
                 totalAmount: finalTotal, // Already calculated with GST
                 taxAmount: taxAmount,
+                roundOff: roundOffValue,
                 type: orderType,
                 orderNumber: `ORD-${Date.now()}`
             };
@@ -510,6 +517,12 @@ export function Billing({ resetSignal }) {
                             </span>
                             <span>₹{taxAmount.toFixed(2)}</span>
                         </div>
+                        {Math.abs(roundOffValue) > 0.001 && (
+                            <div className="flex justify-between text-gray-400 dark:text-gray-500 text-xs">
+                                <span>Round Off</span>
+                                <span>{roundOffValue > 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between font-bold text-lg text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
                             <span>Total</span>
                             <span>₹{finalTotal.toFixed(2)}</span>
