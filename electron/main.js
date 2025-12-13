@@ -1,15 +1,10 @@
-const electronObj = require('electron');
-console.log('Electron require result:', electronObj);
-console.log('Type of electron result:', typeof electronObj);
-console.log('Keys:', Object.keys(electronObj));
+import electron from 'electron';
+const { app, BrowserWindow } = electron;
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { app, BrowserWindow } = electronObj;
-const path = require('path');
-
-if (!app) {
-    console.error('CRITICAL: app is undefined!');
-    process.exit(1);
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
@@ -29,7 +24,6 @@ function createWindow() {
     });
 
     if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-        // Wait a bit for Vite to be ready if running directly, or just fail to load
         mainWindow.loadURL('http://localhost:5174').catch(e => console.log('Failed to load URL, is Vite running?'));
         mainWindow.webContents.openDevTools();
     } else {
