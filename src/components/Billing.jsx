@@ -201,7 +201,7 @@ export function Billing({ resetSignal }) {
                     variantName: i.variant?.name,
                     addons: i.selectedAddons.map(a => ({ id: a.id, name: a.name, price: a.price }))
                 })),
-                totalAmount: finalTotal,
+                totalAmount: finalTotal, // Already calculated with GST
                 taxAmount: taxAmount,
                 type: orderType,
                 orderNumber: `ORD-${Date.now()}`
