@@ -1,11 +1,5 @@
-import electron from 'electron';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const { app, BrowserWindow } = electron;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
@@ -25,7 +19,7 @@ function createWindow() {
     });
 
     if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-        mainWindow.loadURL('http://localhost:5174').catch(e => console.log('Failed to load URL, is Vite running?'));
+        mainWindow.loadURL('http://localhost:5564').catch(e => console.log('Failed to load URL, is Vite running?'));
         mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));

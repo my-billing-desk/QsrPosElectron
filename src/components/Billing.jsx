@@ -2,6 +2,251 @@ import React, { useState, useEffect } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
 import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat } from 'lucide-react';
 
+const generateBillHtml = (order, settings) => {
+    const formatCurrency = (amount) => Number(amount).toFixed(2);
+    const taxableAmount = order.totalAmount - order.taxAmount - (order.roundOff || 0);
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page { margin: 0; }
+            body { 
+                font-family: 'Arial', 'Helvetica', sans-serif; 
+                width: auto;
+                margin: 0; 
+                padding: 0; 
+                background: white; 
+                color: black;
+                font-size: 11px; /* Comparable to thermal default */
+                line-height: 1.3;
+            }
+            .container { 
+                width: 68mm; /* Reduced width to prevent cutoff */
+                margin: 0; /* Fully left aligned */
+                padding-right: 4mm; /* Increased padding to move text left */
+                padding-bottom: 20px;
+                box-sizing: border-box;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .text-left { text-align: left; }
+            .bold { font-weight: bold; }
+            .uppercase { text-transform: uppercase; }
+            
+            .header { margin-bottom: 5px; }
+            .store-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+            .store-info { font-size: 11px; margin-bottom: 2px; }
+            
+            .divider { border-top: 1px solid black; margin: 4px 0; }
+            .divider-dashed { border-top: 1px dashed black; margin: 4px 0; }
+            
+            .metadata-grid { display: flex; flex-wrap: wrap; margin-bottom: 5px; }
+            .meta-item { width: 50%; display: flex; margin-bottom: 2px; }
+            .meta-label { font-weight: bold; margin-right: 5px; }
+            
+            .table-header { display: flex; font-weight: bold; border-top: 1px solid black; border-bottom: 1px solid black; padding: 4px 0; margin: 5px 0; font-size: 11px; }
+            .col-item { flex: 2; text-align: left; padding-right: 2px; }
+            .col-qty { width: 15%; text-align: center; }
+            .col-price { width: 20%; text-align: right; }
+            .col-amt { width: 20%; text-align: right; }
+
+            .item-row { display: flex; padding: 3px 0; }
+            .item-name { flex: 2; text-align: left; padding-right: 2px; word-wrap: break-word; }
+            
+            .addon-row { display: flex; font-size: 10px; color: #333; margin-top: -2px; padding-bottom: 2px; }
+            
+            .totals-section { margin-top: 5px; border-top: 1px solid black; padding-top: 5px; }
+            .total-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+            
+            .grand-total-row { 
+                display: flex; 
+                justify-content: space-between; 
+                border-top: 1px solid black; 
+                border-bottom: 1px solid black; 
+                padding: 6px 0; 
+                margin-top: 5px; 
+                font-size: 14px; 
+                font-weight: 800; 
+            }
+            
+            .footer { text-align: center; margin-top: 15px; font-size: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header text-center">
+                <!-- <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">LOGO</div> -->
+                <div class="store-name uppercase">${settings.store_name || 'QSR STORE'}</div>
+                <div class="store-info">${settings.store_address || ''}</div>
+                <div class="store-info">${settings.store_phone ? 'Ph: ' + settings.store_phone : ''}</div>
+                ${settings.gst_no ? `<div class="store-info bold">GSTIN: ${settings.gst_no}</div>` : ''}
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="metadata-grid">
+                <div class="meta-item"><span class="meta-label">Date:</span> <span>${new Date().toLocaleDateString('en-GB')}</span></div>
+                <div class="meta-item text-right" style="justify-content: flex-end;"><span class="meta-label">Time:</span> <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+                <div class="meta-item"><span class="meta-label">Bill No:</span> <span>${order.orderNumber ? order.orderNumber.slice(-5) : '---'}</span></div>
+                <div class="meta-item text-right" style="justify-content: flex-end;"><span class="meta-label">Type:</span> <span class="uppercase">${order.type}</span></div>
+                ${settings.cashier_name ? `<div class="meta-item"><span class="meta-label">Cashier:</span> <span>${settings.cashier_name}</span></div>` : ''}
+            </div>
+
+            <div class="table-header">
+                <div class="col-item">Item</div>
+                <div class="col-qty">Qty</div>
+                <div class="col-price">Price</div>
+                <div class="col-amt">Amount</div>
+            </div>
+
+            <div class="items-body">
+                ${order.items.map(item => `
+                    <div class="item-row">
+                        <div class="item-name">
+                            ${item.itemName} 
+                            ${item.variantName ? `<br><span style="font-size:10px; font-weight:normal;">(${item.variantName})</span>` : ''}
+                        </div>
+                        <div class="col-qty">${item.quantity}</div>
+                        <div class="col-price">${formatCurrency(item.price)}</div>
+                        <div class="col-amt">${formatCurrency(item.price * item.quantity)}</div>
+                    </div>
+                    ${item.addons.map(a => `
+                        <div class="addon-row">
+                            <div class="item-name" style="padding-left: 10px;">+ ${a.name}</div>
+                            <div class="col-qty">1</div>
+                            <div class="col-price">${formatCurrency(a.price)}</div>
+                            <div class="col-amt">${formatCurrency(a.price)}</div>
+                        </div>
+                    `).join('')}
+                `).join('')}
+            </div>
+
+            <div class="totals-section">
+                <div class="total-row">
+                    <span>Total Qty: ${order.items.reduce((acc, i) => acc + i.quantity, 0)}</span>
+                    <span class="bold">Sub Total: ${formatCurrency(order.subTotal || order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0))}</span>
+                </div>
+                
+                ${order.taxAmount > 0 ? `
+                    <div class="total-row" style="font-size: 10px;">
+                        <span>CGST @ ${(parseFloat(settings.gst_percentage || 5) / 2).toFixed(1)}%</span>
+                        <span>${formatCurrency(order.taxAmount / 2)}</span>
+                    </div>
+                    <div class="total-row" style="font-size: 10px;">
+                        <span>SGST @ ${(parseFloat(settings.gst_percentage || 5) / 2).toFixed(1)}%</span>
+                        <span>${formatCurrency(order.taxAmount / 2)}</span>
+                    </div>
+                ` : ''}
+
+                ${Math.abs(order.roundOff) > 0.001 ? `
+                    <div class="total-row" style="font-size: 10px;">
+                        <span>Round Off</span>
+                        <span>${order.roundOff > 0 ? '+' : ''}${formatCurrency(order.roundOff)}</span>
+                    </div>
+                ` : ''}
+
+                <div class="grand-total-row">
+                    <span>Grand Total</span>
+                    <span>₹ ${formatCurrency(Math.round(order.totalAmount))}</span>
+                </div>
+                
+                <!-- 
+                <div class="total-row" style="font-size: 11px;">
+                    <span>Paid via: Cash/UPI</span>
+                </div>
+                -->
+            </div>
+
+            <div class="footer">
+                ${settings.fssai_no ? `<p>FSSAI Lic No. ${settings.fssai_no}</p>` : ''}
+                <p>Thank You, Visit Again!!!</p>
+                <p style="margin-top: 5px; font-size: 9px; color: #666;">Powered by QSR POS</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+};
+
+const generateKotHtml = (order) => {
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page { margin: 0; }
+            body { 
+                font-family: 'Arial', 'Helvetica', sans-serif; 
+                width: 66mm; /* Reduced to shift content left */
+                margin: 0; 
+                padding: 0;
+                padding-right: 4mm;
+                background: white; 
+                color: black;
+                font-size: 12px;
+                line-height: 1.3;
+            }
+            .container { 
+                width: 100%;
+                margin: 0;
+                padding: 10px 0;
+                padding-bottom: 20px;
+                box-sizing: border-box;
+            }
+            .text-center { text-align: center; }
+            .bold { font-weight: bold; }
+            .uppercase { text-transform: uppercase; }
+            .header { margin-bottom: 10px; border-bottom: 2px solid black; padding-bottom: 5px; }
+            .meta-item { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 14px; font-weight: bold; }
+            .item-row { display: flex; padding: 4px 0; border-bottom: 1px dashed #999; }
+            .item-qty { width: 15%; font-weight: bold; font-size: 14px; }
+            .item-name { flex: 1; font-weight: bold; font-size: 14px; }
+            .addon-row { margin-left: 15%; font-size: 11px; color: #333; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header text-center">
+                <div style="font-size: 18px; font-weight: 900;">KITCHEN TICKET</div>
+                <div class="uppercase bold">${order.type}</div>
+            </div>
+
+            <div class="meta-item">
+                <span>Bill No: ${order.orderNumber ? order.orderNumber.slice(-5) : '---'}</span>
+                <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div class="meta-item">
+                <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+            </div>
+
+            <div style="border-bottom: 2px solid black; margin: 5px 0;"></div>
+
+            ${order.items.map(item => `
+                <div class="item-row">
+                    <div class="item-qty">${item.quantity}</div>
+                    <div class="item-name">
+                        ${item.itemName} 
+                        ${item.variantName ? `<span style="font-size:12px; font-weight:normal;">(${item.variantName})</span>` : ''}
+                    </div>
+                </div>
+                ${item.addons.map(a => `
+                    <div class="addon-row">+ ${a.name}</div>
+                `).join('')}
+            `).join('')}
+
+            <div style="border-top: 2px solid black; margin-top: 10px; padding-top: 10px; text-align: center; font-weight: bold;">
+                Total Items: ${order.items.reduce((acc, i) => acc + i.quantity, 0)}
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+};
+
 export function Billing({ resetSignal }) {
     const [cart, setCart] = useState([]);
     const [orderType, setOrderType] = useState('dine-in');
@@ -16,6 +261,14 @@ export function Billing({ resetSignal }) {
     const [customizingItem, setCustomizingItem] = useState(null);
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [selectedAddons, setSelectedAddons] = useState({}); // { groupId: [addonId, addonId] }
+    const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+
+    const showNotification = (message, type = 'success') => {
+        setNotification({ show: true, message, type });
+        setTimeout(() => {
+            setNotification(prev => ({ ...prev, show: false }));
+        }, 3000);
+    };
 
     useEffect(() => {
         loadData();
@@ -72,6 +325,7 @@ export function Billing({ resetSignal }) {
             }));
         } catch (error) {
             console.error("Failed to load data", error);
+            showNotification("Failed to load menu data", "error");
         }
     };
 
@@ -222,22 +476,69 @@ export function Billing({ resetSignal }) {
                 totalAmount: finalTotal, // Already calculated with GST
                 taxAmount: taxAmount,
                 roundOff: roundOffValue,
+                subTotal: subtotal, // Add subtotal
                 type: orderType,
                 orderNumber: `ORD-${Date.now()}`
             };
 
-            await orderService.createOrder(orderData);
-            alert("Order Placed Successfully!");
+            const response = await orderService.createOrder(orderData);
+
+            showNotification("Order Placed Successfully!");
+
+            // Print Logic
+            if (window.electronAPI) {
+                // 1. Customer Bill
+                const billPrinter = localStorage.getItem('pos_printer_name');
+                if (billPrinter) {
+                    try {
+                        const billHtml = generateBillHtml({
+                            ...orderData,
+                            orderId: response.data?.id || orderData.orderNumber
+                        }, settings);
+                        console.log("Printing Bill to:", billPrinter);
+                        await window.electronAPI.printBill({ printerName: billPrinter, htmlContent: billHtml });
+                        showNotification("Bill sent to printer", "success");
+                    } catch (printErr) {
+                        console.error("Bill Printing failed:", printErr);
+                        showNotification("Bill Print Failed", "error");
+                    }
+                }
+
+                // 2. KOT Print
+                const kotPrinter = localStorage.getItem('pos_kot_printer_name');
+                if (kotPrinter) {
+                    try {
+                        // Small delay to ensure previous job doesn't conflict if same printer
+                        if (billPrinter === kotPrinter) {
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
+
+                        const kotHtml = generateKotHtml({
+                            ...orderData,
+                            orderId: response.data?.id || orderData.orderNumber
+                        });
+                        console.log("Printing KOT to:", kotPrinter);
+                        await window.electronAPI.printBill({ printerName: kotPrinter, htmlContent: kotHtml });
+                        showNotification("KOT sent to printer", "success");
+                    } catch (kotErr) {
+                        console.error("KOT Printing failed:", kotErr);
+                        showNotification("KOT Print Failed", "error");
+                    }
+                }
+            } else {
+                console.warn("Electron API missing, cannot print.");
+            }
+
             setCart([]);
         } catch (error) {
             console.error("Checkout failed", error);
-            alert(`Failed to place order: ${error.response?.data?.error || error.message}`);
+            showNotification(`Failed to place order: ${error.response?.data?.error || error.message}`, "error");
         }
     };
 
     const handleKOT = () => {
         if (cart.length === 0) return;
-        alert(`KOT Generated for ${orderType.toUpperCase()} Order! \nItems sent to kitchen.`);
+        showNotification(`KOT Generated for ${orderType.toUpperCase()} Order!`, "success");
     };
 
     const filteredItems = activeCategory === 'All'
@@ -246,6 +547,23 @@ export function Billing({ resetSignal }) {
 
     return (
         <div className="flex h-full gap-6 p-6 overflow-hidden relative">
+            {/* Notification Toast */}
+            {notification.show && (
+                <div className={`absolute top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'
+                    }`}>
+                    {notification.type === 'error' ? (
+                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">!</div>
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">✓</div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="font-bold text-sm">
+                            {notification.type === 'error' ? 'Error' : 'Success'}
+                        </span>
+                        <span className="text-sm font-medium opacity-90">{notification.message}</span>
+                    </div>
+                </div>
+            )}
             {/* Customization Modal */}
             {customizingItem && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
