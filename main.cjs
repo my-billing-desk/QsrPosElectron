@@ -1,25 +1,35 @@
 const path = require('path');
 const { app, BrowserWindow, ipcMain } = require('electron');
+const fs = require('fs');
+const util = require('util');
+
+const logPath = path.join(__dirname, 'electron_debug.log');
+
+function logToFile(...args) {
+    const timestamp = new Date().toISOString();
+    const message = util.format(...args);
+    fs.appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+}
 
 // Debugging Electron load
 console.log('Electron module loaded type:', typeof app);
-
+logToFile('App started');
 
 // IPC Handlers
 ipcMain.handle('get-printers', async (event) => {
     try {
         const printers = await event.sender.getPrintersAsync();
-        console.log('Printers found:', printers.length);
+        logToFile('Printers found:', printers.length);
         return printers;
     } catch (e) {
-        console.error('Failed to get printers:', e);
+        logToFile('Failed to get printers:', e);
         return [];
     }
 });
 
 ipcMain.handle('print-bill', async (event, { printerName, htmlContent }) => {
-    console.log(`[PRINT] Request received for printer: "${printerName}"`);
-    console.log(`[PRINT] Content length: ${htmlContent ? htmlContent.length : 0}`);
+    logToFile(`[PRINT] Request received for printer: "${printerName}"`);
+    logToFile(`[PRINT] Content length: ${htmlContent ? htmlContent.length : 0}`);
 
     const workerWindow = new BrowserWindow({
         show: false,
@@ -32,46 +42,49 @@ ipcMain.handle('print-bill', async (event, { printerName, htmlContent }) => {
         // Fix spaces in data URL
         const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
         await workerWindow.loadURL(dataUrl);
-        console.log('[PRINT] Worker window loaded content');
+        logToFile('[PRINT] Worker window loaded content');
 
-        // Wait to ensure rendering
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
+        // Check available printers to validate printerName
+        const printers = await workerWindow.webContents.getPrintersAsync();
+        const validPrinter = printers.find(p => p.name === printerName);
+
+        if (printerName && !validPrinter) {
+            logToFile(`[PRINT] Printer "${printerName}" not found in system. Available:`, JSON.stringify(printers.map(p => p.name)));
+            logToFile('[PRINT] Falling back to system default printer.');
+        }
 
         const options = {
             silent: false,
-            deviceName: printerName,
             printBackground: true,
-            margins: { marginType: 'printableArea' } // Use driver's printable area
+            // margins: { marginType: 'default' } 
         };
 
-        // If no printer name provided, it will use default. Log this.
-        if (!printerName) {
-            console.warn('[PRINT] No printerName provided, using system default.');
-            delete options.deviceName;
+        if (printerName && validPrinter) {
+            options.deviceName = printerName;
         }
 
-        console.log('[PRINT] Calling print with options:', options);
+        logToFile('[PRINT] Calling print with options:', JSON.stringify(options));
 
         // Wrap print in a promise to handle the callback
         await new Promise((resolve, reject) => {
             workerWindow.webContents.print(options, (success, failureReason) => {
                 if (success) {
-                    console.log('[PRINT] Print job completed successfully.');
+                    logToFile('[PRINT] Print job completed successfully.');
                     resolve();
                 } else {
-                    console.error('[PRINT] Print job failed:', failureReason);
+                    logToFile('[PRINT] Print job failed:', failureReason);
                     reject(new Error(failureReason));
                 }
             });
         });
 
-        console.log('[PRINT] Print command promise resolved');
+        logToFile('[PRINT] Print command promise resolved');
 
         // workerWindow.close(); // Keep open for debug, or close after a delay?
         // setTimeout(() => workerWindow.close(), 1000); 
         return { success: true };
     } catch (error) {
-        console.error('[PRINT] Print failed with error:', error);
+        logToFile('[PRINT] Print failed with error:', error);
         // if (!workerWindow.isDestroyed()) workerWindow.close();
         throw error;
     }

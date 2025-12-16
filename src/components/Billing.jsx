@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
 import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat } from 'lucide-react';
 
@@ -113,7 +113,7 @@ const generateBillHtml = (order, settings) => {
                         <div class="col-price">${formatCurrency(item.price)}</div>
                         <div class="col-amt">${formatCurrency(item.price * item.quantity)}</div>
                     </div>
-                    ${item.addons.map(a => `
+                    ${(item.addons || []).map(a => `
                         <div class="addon-row">
                             <div class="item-name" style="padding-left: 10px;">+ ${a.name}</div>
                             <div class="col-qty">1</div>
@@ -233,7 +233,7 @@ const generateKotHtml = (order) => {
                         ${item.variantName ? `<span style="font-size:12px; font-weight:normal;">(${item.variantName})</span>` : ''}
                     </div>
                 </div>
-                ${item.addons.map(a => `
+                ${(item.addons || []).map(a => `
                     <div class="addon-row">+ ${a.name}</div>
                 `).join('')}
             `).join('')}
@@ -262,6 +262,8 @@ export function Billing({ resetSignal }) {
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [selectedAddons, setSelectedAddons] = useState({}); // { groupId: [addonId, addonId] }
     const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+    const [incomingOrders, setIncomingOrders] = useState([]);
+    const processedIdsRef = useRef(new Set());
 
     const showNotification = (message, type = 'success') => {
         setNotification({ show: true, message, type });
@@ -284,6 +286,122 @@ export function Billing({ resetSignal }) {
             setActiveCategory('All');
         }
     }, [resetSignal]);
+
+    // Polling for Scan & Order Remote Printing
+    const isPollingRef = useRef(false);
+
+    useEffect(() => {
+        let timeoutId;
+        const pollOrders = async () => {
+            if (isPollingRef.current) return;
+            isPollingRef.current = true;
+
+            try {
+                // Garbage collection for processedIds to prevent memory leak
+                if (processedIdsRef.current.size > 200) {
+                    const it = processedIdsRef.current.values();
+                    // Remove oldest 50 items
+                    for (let i = 0; i < 50; i++) {
+                        processedIdsRef.current.delete(it.next().value);
+                    }
+                }
+
+                // 1. Check for Pending KOTs (Scan Orders only)
+                const kotRes = await orderService.getAll({
+                    source: 'ScanOrder',
+                    isKotPrinted: 'false'
+                });
+
+                if (kotRes.data && kotRes.data.length > 0) {
+                    setIncomingOrders(prev => {
+                        const existingIds = new Set(prev.map(o => o.id));
+                        const newOrders = kotRes.data.filter(o =>
+                            !existingIds.has(o.id) && !processedIdsRef.current.has(o.id)
+                        );
+
+                        if (newOrders.length > 0) {
+                            return [...prev, ...newOrders];
+                        }
+                        return prev;
+                    });
+                }
+
+                // 2. Check for Bill Print Requests
+                const billRes = await orderService.getAll({
+                    printBillRequested: 'true'
+                });
+
+                if (billRes.data && billRes.data.length > 0) {
+                    // console.log(`[Polling] Found ${billRes.data.length} bill print requests`);
+                    for (const order of billRes.data) {
+                        await handleRemotePrint(order, 'BILL');
+                    }
+                }
+            } catch (e) {
+                // console.warn("Polling checking...", e.message);
+            } finally {
+                isPollingRef.current = false;
+                timeoutId = setTimeout(pollOrders, 10000); // Increased to 10s to be gentler
+            }
+        };
+
+        pollOrders(); // Start the loop
+
+        return () => clearTimeout(timeoutId);
+    }, [settings]);
+
+    const handleAcceptOrder = (order) => {
+        if (!order || !order.id) return;
+
+        // 1. Mark as processed immediately
+        processedIdsRef.current.add(order.id);
+
+        // 2. Remove from UI immediately (Optimistic Update)
+        setIncomingOrders(prev => prev.filter(o => o.id !== order.id));
+
+        // 3. Trigger Print & Status Update in background
+        handleRemotePrint(order, 'KOT').catch(err => {
+            console.error("Background print failed", err);
+        });
+    };
+
+    const handleRemotePrint = async (order, type) => {
+        if (!window.electronAPI) return;
+
+        try {
+            if (type === 'KOT') {
+                // Fallback to main printer if KOT printer not set
+                let kotPrinter = localStorage.getItem('pos_kot_printer_name');
+                if (!kotPrinter) {
+                    kotPrinter = localStorage.getItem('pos_printer_name');
+                }
+
+                if (kotPrinter) {
+                    const html = generateKotHtml(order);
+                    await window.electronAPI.printBill({ printerName: kotPrinter, htmlContent: html });
+                    // Update Status & Mark as Preparing (Accepted)
+                    await orderService.update(order.id, {
+                        isKotPrinted: true,
+                        status: 'preparing'
+                    });
+                    showNotification(`New Scan Order KOT Printed #${order.orderNumber.slice(-4)}`);
+                } else {
+                    showNotification("No Printer Configured!", "error");
+                }
+            } else if (type === 'BILL') {
+                const billPrinter = localStorage.getItem('pos_printer_name');
+                if (billPrinter) {
+                    const html = generateBillHtml(order, settings);
+                    await window.electronAPI.printBill({ printerName: billPrinter, htmlContent: html });
+                    // Update Status
+                    await orderService.update(order.id, { printBillRequested: false });
+                    showNotification(`Bill Printed for #${order.orderNumber.slice(-4)}`);
+                }
+            }
+        } catch (err) {
+            console.error(`Remote Print Error (${type}):`, err);
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -547,6 +665,50 @@ export function Billing({ resetSignal }) {
 
     return (
         <div className="flex h-full gap-6 p-6 overflow-hidden relative">
+            {/* Incoming Orders Modal / Popup */}
+            {incomingOrders.length > 0 && (
+                <div className="absolute bottom-6 right-6 z-[200] space-y-3 flex flex-col items-end">
+                    {incomingOrders.map(order => (
+                        <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-l-4 border-orange-500 w-80 overflow-hidden animate-in slide-in-from-right-10">
+                            <div className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                                            New Order #{order.orderNumber.slice(-4)}
+                                        </h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{order.type} • {order.items.reduce((s, i) => s + i.quantity, 0)} Items</p>
+                                    </div>
+                                    <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                        Scan & Order
+                                    </span>
+                                </div>
+
+                                <div className="max-h-32 overflow-y-auto mb-3 bg-gray-50 dark:bg-gray-700/50 p-2 rounded text-xs space-y-1">
+                                    {order.items.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between">
+                                            <span>{item.quantity} x {item.itemName}</span>
+                                            <span className="text-gray-500">
+                                                {item.variantName ? `(${item.variantName})` : ''}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleAcceptOrder(order)}
+                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+                                    >
+                                        <Printer size={16} /> Accept & Print
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Notification Toast */}
             {notification.show && (
                 <div className={`absolute top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'
@@ -694,6 +856,7 @@ export function Billing({ resetSignal }) {
                 </div>
             )}
 
+
             {/* Menu Area */}
             <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {/* Order Type Tabs */}
@@ -750,7 +913,15 @@ export function Billing({ resetSignal }) {
                                     onClick={() => initiateAddToCart(item)}
                                     className="group relative flex flex-col items-center p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-md transition-all bg-gray-50 dark:bg-gray-700/30"
                                 >
-                                    <div className={`w-20 h-20 rounded-full mb-3 ${item.color} dark:bg-opacity-20 flex items-center justify-center text-3xl shadow-sm group-hover:scale-105 transition-transform`}>
+                                    {item.showImage && item.image ? (
+                                        <img
+                                            src={`http://localhost:5001${item.image}`}
+                                            alt={item.name}
+                                            className="w-20 h-20 rounded-full mb-3 object-cover shadow-sm group-hover:scale-105 transition-transform border border-gray-100"
+                                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                        />
+                                    ) : null}
+                                    <div className={`w-20 h-20 rounded-full mb-3 ${item.color} dark:bg-opacity-20 flex items-center justify-center text-3xl shadow-sm group-hover:scale-105 transition-transform ${item.showImage && item.image ? 'hidden' : ''}`}>
                                         🍔
                                     </div>
                                     <h4 className="font-semibold text-gray-900 dark:text-white text-center text-sm">{item.name}</h4>
