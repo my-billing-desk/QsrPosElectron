@@ -2,8 +2,7 @@
     "name": "qsr-pos-electron",
     "private": true,
     "version": "0.1.0",
-    "main": "electron/main.mjs",
-    "type": "module",
+    "main": "electron/main.cjs",
     "scripts": {
         "dev": "concurrently \"vite --port 5174\" \"wait-on tcp:5174 && npx electron .\"",
         "build": "vite build",
