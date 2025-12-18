@@ -141,6 +141,13 @@ const generateBillHtml = (order, settings) => {
                     </div>
                 ` : ''}
 
+                ${order.containerCharge > 0 ? `
+                    <div class="total-row" style="font-size: 10px;">
+                        <span>Packing Charges</span>
+                        <span>${formatCurrency(order.containerCharge)}</span>
+                    </div>
+                ` : ''}
+
                 ${Math.abs(order.roundOff) > 0.001 ? `
                     <div class="total-row" style="font-size: 10px;">
                         <span>Round Off</span>
@@ -297,33 +304,25 @@ export function Billing({ resetSignal }) {
             isPollingRef.current = true;
 
             try {
-                // Garbage collection for processedIds to prevent memory leak
+                // Garbage collection
                 if (processedIdsRef.current.size > 200) {
                     const it = processedIdsRef.current.values();
-                    // Remove oldest 50 items
-                    for (let i = 0; i < 50; i++) {
-                        processedIdsRef.current.delete(it.next().value);
-                    }
+                    for (let i = 0; i < 50; i++) processedIdsRef.current.delete(it.next().value);
                 }
 
-                // 1. Check for Pending KOTs (Scan Orders only)
+                // 1. Check for Pending KOTs -> AUTO ACCEPT & PRINT
                 const kotRes = await orderService.getAll({
                     source: 'ScanOrder',
                     isKotPrinted: 'false'
                 });
 
                 if (kotRes.data && kotRes.data.length > 0) {
-                    setIncomingOrders(prev => {
-                        const existingIds = new Set(prev.map(o => o.id));
-                        const newOrders = kotRes.data.filter(o =>
-                            !existingIds.has(o.id) && !processedIdsRef.current.has(o.id)
-                        );
-
-                        if (newOrders.length > 0) {
-                            return [...prev, ...newOrders];
+                    for (const order of kotRes.data) {
+                        if (!processedIdsRef.current.has(order.id)) {
+                            // Automatically accept and print
+                            await handleAcceptOrder(order);
                         }
-                        return prev;
-                    });
+                    }
                 }
 
                 // 2. Check for Bill Print Requests
@@ -332,37 +331,36 @@ export function Billing({ resetSignal }) {
                 });
 
                 if (billRes.data && billRes.data.length > 0) {
-                    // console.log(`[Polling] Found ${billRes.data.length} bill print requests`);
                     for (const order of billRes.data) {
-                        await handleRemotePrint(order, 'BILL');
+                        // Avoid double processing loop
+                        if (!processedIdsRef.current.has(`BILL-${order.id}`)) {
+                            processedIdsRef.current.add(`BILL-${order.id}`);
+                            await handleRemotePrint(order, 'BILL');
+                        }
                     }
                 }
             } catch (e) {
                 // console.warn("Polling checking...", e.message);
             } finally {
                 isPollingRef.current = false;
-                timeoutId = setTimeout(pollOrders, 10000); // Increased to 10s to be gentler
+                timeoutId = setTimeout(pollOrders, 5000); // 5s interval
             }
         };
 
-        pollOrders(); // Start the loop
-
+        pollOrders();
         return () => clearTimeout(timeoutId);
     }, [settings]);
 
-    const handleAcceptOrder = (order) => {
+    const handleAcceptOrder = async (order) => {
         if (!order || !order.id) return;
-
-        // 1. Mark as processed immediately
         processedIdsRef.current.add(order.id);
 
-        // 2. Remove from UI immediately (Optimistic Update)
-        setIncomingOrders(prev => prev.filter(o => o.id !== order.id));
-
-        // 3. Trigger Print & Status Update in background
-        handleRemotePrint(order, 'KOT').catch(err => {
-            console.error("Background print failed", err);
-        });
+        // Skip UI Incoming Orders state, directly print (Auto-mode)
+        try {
+            await handleRemotePrint(order, 'KOT');
+        } catch (err) {
+            console.error("Auto-Accept failed", err);
+        }
     };
 
     const handleRemotePrint = async (order, type) => {
@@ -370,32 +368,91 @@ export function Billing({ resetSignal }) {
 
         try {
             if (type === 'KOT') {
-                // Fallback to main printer if KOT printer not set
-                let kotPrinter = localStorage.getItem('pos_kot_printer_name');
-                if (!kotPrinter) {
-                    kotPrinter = localStorage.getItem('pos_printer_name');
-                }
+                let kotPrinter = localStorage.getItem('pos_kot_printer_name') || localStorage.getItem('pos_printer_name');
 
                 if (kotPrinter) {
                     const html = generateKotHtml(order);
                     await window.electronAPI.printBill({ printerName: kotPrinter, htmlContent: html });
-                    // Update Status & Mark as Preparing (Accepted)
+
                     await orderService.update(order.id, {
                         isKotPrinted: true,
                         status: 'preparing'
                     });
-                    showNotification(`New Scan Order KOT Printed #${order.orderNumber.slice(-4)}`);
+                    showNotification(`Auto-Printed KOT #${order.orderNumber.slice(-4)}`);
                 } else {
                     showNotification("No Printer Configured!", "error");
                 }
             } else if (type === 'BILL') {
                 const billPrinter = localStorage.getItem('pos_printer_name');
                 if (billPrinter) {
-                    const html = generateBillHtml(order, settings);
+                    let finalOrder = order;
+                    let relatedOrders = [order];
+
+                    // Aggregation Logic (Final Bill with all KOTs)
+                    if (order.tableNumber) {
+                        const startOfDay = new Date();
+                        startOfDay.setHours(0, 0, 0, 0);
+                        try {
+                            const res = await orderService.getAll({
+                                tableNumber: order.tableNumber,
+                                startDate: startOfDay.toISOString()
+                            });
+
+                            if (res.data && res.data.length > 1) {
+                                // Filter orders that are NOT cancelled
+                                const validOrders = res.data.filter(o => o.status !== 'cancelled');
+                                relatedOrders = validOrders;
+
+                                // Aggregate
+                                const combinedItems = [];
+                                let totalAmount = 0, taxAmount = 0, subTotal = 0, roundOff = 0;
+
+                                validOrders.forEach(o => {
+                                    totalAmount += Number(o.totalAmount || 0);
+                                    taxAmount += Number(o.taxAmount || 0);
+                                    subTotal += Number(o.subTotal || 0);
+                                    roundOff += Number(o.roundOff || 0);
+
+                                    (o.items || []).forEach(item => {
+                                        // Simple merge by name + variant
+                                        const existing = combinedItems.find(ci =>
+                                            ci.itemName === item.itemName &&
+                                            ci.variantName === item.variantName &&
+                                            JSON.stringify(ci.addons) === JSON.stringify(item.addons)
+                                        );
+                                        if (existing) {
+                                            existing.quantity += item.quantity;
+                                        } else {
+                                            combinedItems.push({ ...item });
+                                        }
+                                    });
+                                });
+
+                                finalOrder = {
+                                    ...order,
+                                    items: combinedItems,
+                                    totalAmount,
+                                    taxAmount,
+                                    subTotal,
+                                    roundOff,
+                                    orderNumber: validOrders.map(o => o.orderNumber.slice(-4)).join(', ')
+                                };
+                            }
+                        } catch (aggErr) {
+                            console.error("Aggregation failed", aggErr);
+                        }
+                    }
+
+                    const html = generateBillHtml(finalOrder, settings);
                     await window.electronAPI.printBill({ printerName: billPrinter, htmlContent: html });
-                    // Update Status
-                    await orderService.update(order.id, { printBillRequested: false });
-                    showNotification(`Bill Printed for #${order.orderNumber.slice(-4)}`);
+
+                    // Clear flag for ALL related orders
+                    for (const o of relatedOrders) {
+                        if (o.printBillRequested) {
+                            await orderService.update(o.id, { printBillRequested: false });
+                        }
+                    }
+                    showNotification(`Final Bill Printed for Table ${order.tableNumber}`);
                 }
             }
         } catch (err) {
@@ -551,13 +608,22 @@ export function Billing({ resetSignal }) {
 
     let taxAmount = 0;
     let finalTotal = 0;
+    let containerCharge = 0;
+
+    // Container Charge
+    if (orderType === 'takeaway') {
+        const chargePerItem = parseFloat(settings.container_charge || 0);
+        // Count total qty
+        const totalItems = cart.reduce((sum, i) => sum + i.qty, 0);
+        containerCharge = totalItems * chargePerItem;
+    }
 
     if (isInclusive) {
-        finalTotal = subtotal;
+        finalTotal = subtotal + containerCharge;
         taxAmount = subtotal - (subtotal / (1 + (gstPercent / 100)));
     } else {
         taxAmount = subtotal * (gstPercent / 100);
-        finalTotal = subtotal + taxAmount;
+        finalTotal = subtotal + taxAmount + containerCharge;
     }
 
     // Apply Rounding based on setting
@@ -595,6 +661,7 @@ export function Billing({ resetSignal }) {
                 taxAmount: taxAmount,
                 roundOff: roundOffValue,
                 subTotal: subtotal, // Add subtotal
+                containerCharge: containerCharge, // Add container charge
                 type: orderType,
                 orderNumber: `ORD-${Date.now()}`
             };
