@@ -3,27 +3,15 @@ import {
     LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw
 } from 'lucide-react';
 
-export function Sidebar({ activeTab, onTabChange }) {
-    const [isCollapsed, setIsCollapsed] = React.useState(true);
-
-    // Auto-collapse logic based on active tab
-    React.useEffect(() => {
-        if (activeTab === 'billing') {
-            setIsCollapsed(true);
-        } else {
-            setIsCollapsed(false);
-        }
-    }, [activeTab]);
-
-    const toggleSidebar = () => {
-        setIsCollapsed(prev => !prev);
-    };
+export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar }) {
+    // State lifted to App.jsx
 
     // Desktop POS Menu Structure
     const menuGroups = [
         {
             title: 'POS Operations',
             items: [
+                { id: 'operations', label: 'Operations', icon: LayoutDashboard }, // New Home/Ops Screen
                 { id: 'billing', label: 'Quick Bill', icon: Printer },
                 { id: 'order_history', label: 'Order History', icon: FileText },
                 { id: 'running_orders', label: 'Running Orders', icon: PlayCircle },

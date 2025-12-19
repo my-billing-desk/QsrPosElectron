@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
-import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2 } from 'lucide-react';
+import { SpecialNoteModal } from './SpecialNoteModal';
 
 const generateBillHtml = (order, settings) => {
     const formatCurrency = (amount) => Number(amount).toFixed(2);
@@ -56,7 +57,8 @@ const generateBillHtml = (order, settings) => {
             .item-row { display: flex; padding: 3px 0; }
             .item-name { flex: 2; text-align: left; padding-right: 2px; word-wrap: break-word; }
             
-            .addon-row { display: flex; font-size: 10px; color: #333; margin-top: -2px; padding-bottom: 2px; }
+            .addon-row, .note-row { display: flex; font-size: 10px; color: #333; margin-top: -2px; padding-bottom: 2px; }
+            .note-row { font-style: italic; color: #555; }
             
             .totals-section { margin-top: 5px; border-top: 1px solid black; padding-top: 5px; }
             .total-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
@@ -121,6 +123,11 @@ const generateBillHtml = (order, settings) => {
                             <div class="col-amt">${formatCurrency(a.price)}</div>
                         </div>
                     `).join('')}
+                    ${item.specialNote ? `
+                         <div class="note-row">
+                            <div class="item-name" style="padding-left: 10px;">Note: ${item.specialNote}</div>
+                        </div>
+                    ` : ''}
                 `).join('')}
             </div>
 
@@ -212,7 +219,8 @@ const generateKotHtml = (order) => {
             .item-row { display: flex; padding: 4px 0; border-bottom: 1px dashed #999; }
             .item-qty { width: 15%; font-weight: bold; font-size: 14px; }
             .item-name { flex: 1; font-weight: bold; font-size: 14px; }
-            .addon-row { margin-left: 15%; font-size: 11px; color: #333; }
+            .addon-row, .note-row { margin-left: 15%; font-size: 11px; color: #333; }
+            .note-row { font-weight: bold; font-style: italic; font-size: 12px; margin-top: 2px; border: 1px solid black; padding: 2px; display: inline-block;}
         </style>
     </head>
     <body>
@@ -243,6 +251,11 @@ const generateKotHtml = (order) => {
                 ${(item.addons || []).map(a => `
                     <div class="addon-row">+ ${a.name}</div>
                 `).join('')}
+                ${item.specialNote ? `
+                    <div class="addon-row">
+                        <span class="note-row">${item.specialNote}</span>
+                    </div>
+                ` : ''}
             `).join('')}
 
             <div style="border-top: 2px solid black; margin-top: 10px; padding-top: 10px; text-align: center; font-weight: bold;">
@@ -272,6 +285,10 @@ export function Billing({ resetSignal }) {
     const [incomingOrders, setIncomingOrders] = useState([]);
     const processedIdsRef = useRef(new Set());
 
+    // Special Note State
+    const [noteModalOpen, setNoteModalOpen] = useState(false);
+    const [noteTargetIndex, setNoteTargetIndex] = useState(null);
+
     const showNotification = (message, type = 'success') => {
         setNotification({ show: true, message, type });
         setTimeout(() => {
@@ -297,59 +314,33 @@ export function Billing({ resetSignal }) {
     // Polling for Scan & Order Remote Printing
     const isPollingRef = useRef(false);
 
-    useEffect(() => {
-        let timeoutId;
-        const pollOrders = async () => {
-            if (isPollingRef.current) return;
-            isPollingRef.current = true;
-
-            try {
-                // Garbage collection
-                if (processedIdsRef.current.size > 200) {
-                    const it = processedIdsRef.current.values();
-                    for (let i = 0; i < 50; i++) processedIdsRef.current.delete(it.next().value);
-                }
-
-                // 1. Check for Pending KOTs -> AUTO ACCEPT & PRINT
-                const kotRes = await orderService.getAll({
-                    source: 'ScanOrder',
-                    isKotPrinted: 'false'
-                });
-
-                if (kotRes.data && kotRes.data.length > 0) {
-                    for (const order of kotRes.data) {
-                        if (!processedIdsRef.current.has(order.id)) {
-                            // Automatically accept and print
-                            await handleAcceptOrder(order);
-                        }
-                    }
-                }
-
-                // 2. Check for Bill Print Requests
-                const billRes = await orderService.getAll({
-                    printBillRequested: 'true'
-                });
-
-                if (billRes.data && billRes.data.length > 0) {
-                    for (const order of billRes.data) {
-                        // Avoid double processing loop
-                        if (!processedIdsRef.current.has(`BILL-${order.id}`)) {
-                            processedIdsRef.current.add(`BILL-${order.id}`);
-                            await handleRemotePrint(order, 'BILL');
-                        }
-                    }
-                }
-            } catch (e) {
-                // console.warn("Polling checking...", e.message);
-            } finally {
-                isPollingRef.current = false;
-                timeoutId = setTimeout(pollOrders, 5000); // 5s interval
-            }
-        };
-
-        pollOrders();
-        return () => clearTimeout(timeoutId);
-    }, [settings]);
+    // useEffect(() => {
+    //     // Polling removed to prevent continuous fetch errors. 
+    //     // Scan & Order printing should be triggered by specific events or manual refresh if needed.
+    //     //     const pollOrders = async () => {
+    //     //         if (isPollingRef.current) return;
+    //     //         isPollingRef.current = true;
+    //     //
+    //     //         try {
+    //     //             // Garbage collection logic...
+    //     //             
+    //     //             // 1. Check for Pending KOTs -> AUTO ACCEPT & PRINT
+    //     //             // Logic commented out to stop auto-print loop errors.
+    //     //             
+    //     //             // 2. Check for Bill Print Requests
+    //     //             // Logic commented out to stop auto-print loop errors.
+    //     //             
+    //     //         } catch (e) {
+    //     //             // console.warn("Polling checking...", e.message);
+    //     //         } finally {
+    //     //             isPollingRef.current = false;
+    //     //             // timeoutId = setTimeout(pollOrders, 5000); // 5s interval
+    //     //         }
+    //     //     };
+    //     //
+    //     //     // pollOrders();
+    //     //     return () => clearTimeout(timeoutId);
+    // }, [settings]);
 
     const handleAcceptOrder = async (order) => {
         if (!order || !order.id) return;
@@ -583,7 +574,8 @@ export function Billing({ resetSignal }) {
                 variant: variant,
                 selectedAddons: addons,
                 displayPrice: finalPrice, // Store the unit price for this configuration
-                price: finalPrice // Override base price for calculation
+                price: finalPrice, // Override base price for calculation
+                specialNote: '' // Initialize special note
             }];
         });
     };
@@ -599,6 +591,22 @@ export function Billing({ resetSignal }) {
 
     const removeItem = (signature) => {
         setCart(prev => prev.filter(i => i.signature !== signature));
+    };
+
+    // Special Note Handlers
+    const openSpecialNoteModal = (index) => {
+        setNoteTargetIndex(index);
+        setNoteModalOpen(true);
+    };
+
+    const handleSpecialNoteSelect = (note) => {
+        if (noteTargetIndex !== null) {
+            setCart(prev => {
+                const newCart = [...prev];
+                newCart[noteTargetIndex] = { ...newCart[noteTargetIndex], specialNote: note };
+                return newCart;
+            });
+        }
     };
 
     // Calculation Logic
@@ -655,7 +663,8 @@ export function Billing({ resetSignal }) {
                     quantity: i.qty,
                     variantId: i.variant?.id,
                     variantName: i.variant?.name,
-                    addons: i.selectedAddons.map(a => ({ id: a.id, name: a.name, price: a.price }))
+                    addons: i.selectedAddons.map(a => ({ id: a.id, name: a.name, price: a.price })),
+                    specialNote: i.specialNote // Include special note
                 })),
                 totalAmount: finalTotal, // Already calculated with GST
                 taxAmount: taxAmount,
@@ -732,6 +741,12 @@ export function Billing({ resetSignal }) {
 
     return (
         <div className="flex h-full gap-6 p-6 overflow-hidden relative">
+            <SpecialNoteModal
+                isOpen={noteModalOpen}
+                onClose={() => setNoteModalOpen(false)}
+                onSelect={handleSpecialNoteSelect}
+            />
+
             {/* Incoming Orders Modal / Popup */}
             {incomingOrders.length > 0 && (
                 <div className="absolute bottom-6 right-6 z-[200] space-y-3 flex flex-col items-end">
@@ -1020,11 +1035,17 @@ export function Billing({ resetSignal }) {
                             <p className="text-sm">Select items to start ordering</p>
                         </div>
                     ) : (
-                        cart.map(item => (
+                        cart.map((item, idx) => (
                             <div key={item.signature} className="flex flex-col p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h4 className="font-medium text-gray-900 dark:text-white text-sm">{item.name}</h4>
+                                    <div className="flex-1">
+                                        <h4
+                                            className="font-medium text-gray-900 dark:text-white text-sm cursor-pointer hover:text-orange-600 transition-colors"
+                                            onClick={() => openSpecialNoteModal(idx)}
+                                            title="Click to add note"
+                                        >
+                                            {item.name} <Edit2 size={10} className="inline ml-1 opacity-50" />
+                                        </h4>
                                         {/* Variation Tag */}
                                         {item.variant && <span className="text-[10px] bg-orange-100 text-orange-800 px-1 rounded block w-fit mt-0.5">{item.variant.name}</span>}
                                         {/* Addons List */}
@@ -1035,8 +1056,14 @@ export function Billing({ resetSignal }) {
                                                 ))}
                                             </div>
                                         )}
+                                        {/* Special Note */}
+                                        {item.specialNote && (
+                                            <div className="text-[10px] text-blue-600 font-medium mt-1 italic">
+                                                Note: {item.specialNote}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right pl-2">
                                         <p className="font-bold text-gray-900 dark:text-white text-sm">₹{(item.price * item.qty).toFixed(2)}</p>
                                     </div>
                                 </div>

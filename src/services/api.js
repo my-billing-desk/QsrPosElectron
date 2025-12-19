@@ -23,6 +23,11 @@ export const menuService = {
     getCategories: () => api.get('/menu/categories')
 };
 
+export const specialNoteService = {
+    getAll: () => api.get('/special-notes'),
+    create: (data) => api.post('/special-notes', data),
+};
+
 export const settingsService = {
     getSettings: () => api.get('/settings')
 };

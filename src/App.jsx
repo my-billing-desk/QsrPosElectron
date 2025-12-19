@@ -8,10 +8,26 @@ import { KotManagement } from './components/KotManagement';
 import { OrderHistory } from './components/OrderHistory';
 import { Settings } from './components/Settings';
 
+import { Operations } from './components/Operations';
+
 function App() {
-    const [activeTab, setActiveTab] = useState('billing'); // Default to Billing
+    const [activeTab, setActiveTab] = useState('operations'); // Default to Operations
     const [selectedTable, setSelectedTable] = useState(null);
     const [billingKey, setBillingKey] = useState(0);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+
+    // Auto-collapse logic based on active tab
+    React.useEffect(() => {
+        if (activeTab === 'billing') {
+            setIsSidebarCollapsed(true);
+        } else {
+            setIsSidebarCollapsed(false);
+        }
+    }, [activeTab]);
+
+    const toggleSidebar = () => {
+        setIsSidebarCollapsed(prev => !prev);
+    };
 
     const handleTableSelect = (table) => {
         setSelectedTable(table);
@@ -31,15 +47,22 @@ function App() {
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans overflow-hidden">
-            <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+            <Sidebar
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                isCollapsed={isSidebarCollapsed}
+                toggleSidebar={toggleSidebar}
+            />
 
             <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Global Header */}
                 <Header
-                    title={activeTab === 'billing' && selectedTable ? `Billing - ${selectedTable.name}` : activeTab === 'billing' ? 'Quick Bill' : activeTab.replace(/_/g, ' ')}
-                    onDesktopClick={() => setActiveTab('billing')}
+                    onToggleSidebar={toggleSidebar}
+                    onNavigate={handleTabChange}
                 />
 
-                <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900">
+                <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900 flex flex-col">
+                    {activeTab === 'operations' && <Operations onNavigate={handleTabChange} />}
                     {activeTab === 'dashboard' && <Dashboard />}
                     {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
                     {activeTab === 'kitchen_view' && <KotManagement />}
@@ -47,7 +70,7 @@ function App() {
                     {activeTab === 'print_config' && <Settings />}
 
                     {/* Placeholder for future POS modules */}
-                    {!['dashboard', 'billing', 'tables', 'kitchen_view', 'order_history', 'print_config'].includes(activeTab) && (
+                    {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'order_history', 'print_config'].includes(activeTab) && (
                         <div className="flex flex-col items-center justify-center h-full text-gray-400">
                             <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-4xl">
                                 🚧
