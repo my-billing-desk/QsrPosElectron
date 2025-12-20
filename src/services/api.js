@@ -15,7 +15,8 @@ export const orderService = {
     getAll: (params) => api.get('/orders', { params }), // Renamed to Match Web Admin convention or keep getOrders but with params
     getOrders: (params) => api.get('/orders', { params }), // Keeping this for backward compatibility if used
     createOrder: (data) => api.post('/orders', data),
-    syncOrders: (orders) => api.post('/orders/sync', orders)
+    syncOrders: (orders) => api.post('/orders/sync', orders),
+    markKotPrinted: (id) => api.post('/orders/mark-kot-printed', { id })
 };
 
 export const menuService = {

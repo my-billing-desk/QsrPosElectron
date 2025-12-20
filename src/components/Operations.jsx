@@ -42,7 +42,7 @@ export function Operations({ onNavigate }) {
 
     const configModules = [
         { id: 'menu_manage', title: 'Menu', icon: FileText, color: 'text-gray-700' },
-        { id: 'print_setup', title: 'Bill / KOT Print', icon: Printer, color: 'text-gray-700' },
+        { id: 'print_config', title: 'Bill / KOT Print', icon: Printer, color: 'text-gray-700' },
         { id: 'tax_setup', title: 'Tax', icon: ScrollText, color: 'text-gray-700' },
         { id: 'discount_setup', title: 'Discount', icon: Percent, color: 'text-gray-700' },
         { id: 'billing_screen_setup', title: 'Billing Screen', icon: List, color: 'text-gray-700' },
@@ -66,7 +66,7 @@ export function Operations({ onNavigate }) {
                         <p>Master Billing Station</p>
                     </div>
                     <div className="text-right">
-                        <a href="mailto:support@petpooja.com" className="hover:text-blue-600 flex items-center gap-2">
+                        <a href="mailto:support@mybill.com" className="hover:text-blue-600 flex items-center gap-2">
                             Send a Mail: support@gmail.com
                         </a>
                     </div>

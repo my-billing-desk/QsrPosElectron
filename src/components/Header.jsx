@@ -11,7 +11,7 @@ export function Header({ title, onToggleSidebar, onNavigate }) {
             {/* Left Section */}
             <div className="flex items-center gap-2">
                 {/* Hamburger with Green Dot */}
-                
+
 
                 {/* New Order Button */}
                 <button
@@ -59,9 +59,12 @@ export function Header({ title, onToggleSidebar, onNavigate }) {
                         <span className="text-[10px]">Store</span>
                     </div>
 
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
+                    <div
+                        className="flex flex-col items-center cursor-pointer hover:text-gray-900 group"
+                        onClick={() => onNavigate && onNavigate('online_orders')}
+                    >
                         <Wifi className="w-6 h-6 mb-0.5 group-hover:text-green-600" />
-                        <span className="text-[10px]">Live View</span>
+                        <span className="text-[10px]">Online</span>
                     </div>
 
                     <div
@@ -100,7 +103,7 @@ export function Header({ title, onToggleSidebar, onNavigate }) {
 
                 {/* Support Info */}
                 <div className="bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-l-md border-l-4 border-red-500 hidden xl:block">
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400 leading-none">07969 223344</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400 leading-none">07123456789</p>
                     <p className="text-xs text-gray-700 dark:text-gray-300 text-right flex items-center justify-end gap-1 cursor-pointer hover:underline">
                         Request Support <span>&gt;</span>
                     </p>

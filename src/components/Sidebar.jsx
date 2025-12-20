@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw
+    LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag
 } from 'lucide-react';
 
 export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar }) {
@@ -12,18 +12,12 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar }) 
             title: 'POS Operations',
             items: [
                 { id: 'operations', label: 'Operations', icon: LayoutDashboard },
+                { id: 'online_orders', label: 'Online Orders', icon: ShoppingBag },
                 { id: 'order_history', label: 'Order History', icon: FileText },
                 { id: 'running_orders', label: 'Running Orders', icon: PlayCircle },
                 { id: 'running_summary', label: 'Order Summary', icon: FolderOpen },
                 { id: 'kitchen_view', label: 'Kitchen View (KDS)', icon: ChefHat },
                 { id: 'day_shift', label: 'Day Shift', icon: Clock },
-            ]
-        },
-        {
-            title: 'Configuration',
-            items: [
-                { id: 'print_config', label: 'Print Configuration', icon: Printer },
-                { id: 'kot_print_setup', label: 'KOT Print Setup', icon: FileText },
             ]
         }
     ];

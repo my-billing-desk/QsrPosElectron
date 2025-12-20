@@ -8,8 +8,11 @@ import { KotManagement } from './components/KotManagement';
 import { OrderHistory } from './components/OrderHistory';
 import { Settings } from './components/Settings';
 import { Operations } from './components/Operations';
+import { OnlineOrders } from './components/OnlineOrders';
+import { useOnlineOrders } from './hooks/useOnlineOrders';
 
 function App() {
+    useOnlineOrders();
     const [activeTab, setActiveTab] = useState('billing');
     const [selectedTable, setSelectedTable] = useState(null);
     const [billingKey, setBillingKey] = useState(0);
@@ -65,11 +68,12 @@ function App() {
                     {activeTab === 'dashboard' && <Dashboard />}
                     {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
                     {activeTab === 'kitchen_view' && <KotManagement />}
+                    {activeTab === 'online_orders' && <OnlineOrders />}
                     {activeTab === 'order_history' && <OrderHistory />}
                     {activeTab === 'print_config' && <Settings />}
 
                     {/* Placeholder for future POS modules */}
-                    {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'order_history', 'print_config'].includes(activeTab) && (
+                    {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'online_orders', 'order_history', 'print_config'].includes(activeTab) && (
                         <div className="flex flex-col items-center justify-center h-full text-gray-400">
                             <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-4xl">
                                 🚧

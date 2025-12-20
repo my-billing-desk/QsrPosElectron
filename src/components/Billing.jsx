@@ -359,20 +359,53 @@ export function Billing({ resetSignal }) {
 
         try {
             if (type === 'KOT') {
-                let kotPrinter = localStorage.getItem('pos_kot_printer_name') || localStorage.getItem('pos_printer_name');
+                const stationMappingJson = localStorage.getItem('pos_station_mapping');
+                const stationMapping = stationMappingJson ? JSON.parse(stationMappingJson) : {};
+                const legacyKotPrinter = localStorage.getItem('pos_kot_printer_name') || localStorage.getItem('pos_printer_name');
+                const isRoutingEnabled = localStorage.getItem('pos_kitchen_routing_enabled') === 'true';
 
-                if (kotPrinter) {
-                    const html = generateKotHtml(order);
-                    await window.electronAPI.printBill({ printerName: kotPrinter, htmlContent: html });
+                // Group items by station
+                const itemsByStation = {};
+                order.items.forEach(item => {
+                    const station = item.Category?.station || 'Kitchen';
+                    if (!itemsByStation[station]) itemsByStation[station] = [];
+                    itemsByStation[station].push(item);
+                });
 
-                    await orderService.update(order.id, {
-                        isKotPrinted: true,
-                        status: 'preparing'
-                    });
-                    showNotification(`Auto-Printed KOT #${order.orderNumber.slice(-4)}`);
+                const stations = Object.keys(itemsByStation);
+
+                if (isRoutingEnabled && Object.keys(stationMapping).length > 0 && stations.length > 0) {
+                    // Multi-printer Routing
+                    for (const station of stations) {
+                        const printerName = stationMapping[station] || legacyKotPrinter; // Fallback to default if station not mapped
+                        if (printerName) {
+                            const stationItems = itemsByStation[station];
+                            // Create partial order for print
+                            const partialOrder = { ...order, items: stationItems };
+                            const html = generateKotHtml(partialOrder); // Re-use existing generator
+                            await window.electronAPI.printBill({ printerName, htmlContent: html });
+                            console.log(`Printed KOT for Station: ${station} to ${printerName}`);
+                        } else {
+                            console.warn(`No printer found for station: ${station}`);
+                        }
+                    }
                 } else {
-                    showNotification("No Printer Configured!", "error");
+                    // Legacy Mode (Single Printer)
+                    if (legacyKotPrinter) {
+                        const html = generateKotHtml(order);
+                        await window.electronAPI.printBill({ printerName: legacyKotPrinter, htmlContent: html });
+                    } else {
+                        showNotification("No Printer Configured!", "error");
+                        return; // Exit if no printer
+                    }
                 }
+
+                await orderService.update(order.id, {
+                    isKotPrinted: true,
+                    status: 'preparing'
+                });
+                showNotification(`Auto-Printed KOT #${order.orderNumber.slice(-4)}`);
+
             } else if (type === 'BILL') {
                 const billPrinter = localStorage.getItem('pos_printer_name');
                 if (billPrinter) {
@@ -701,24 +734,68 @@ export function Billing({ resetSignal }) {
                 }
 
                 // 2. KOT Print
-                const kotPrinter = localStorage.getItem('pos_kot_printer_name');
-                if (kotPrinter) {
-                    try {
-                        // Small delay to ensure previous job doesn't conflict if same printer
-                        if (billPrinter === kotPrinter) {
-                            await new Promise(r => setTimeout(r, 1500));
-                        }
+                // 2. KOT Print (Split by Station)
+                const stationMappingJson = localStorage.getItem('pos_station_mapping');
+                const stationMapping = stationMappingJson ? JSON.parse(stationMappingJson) : {};
+                const legacyKotPrinter = localStorage.getItem('pos_kot_printer_name') || billPrinter; // Fallback to bill printer
+                const isRoutingEnabled = localStorage.getItem('pos_kitchen_routing_enabled') === 'true';
 
-                        const kotHtml = generateKotHtml({
-                            ...orderData,
-                            orderId: response.data?.id || orderData.orderNumber
-                        });
-                        console.log("Printing KOT to:", kotPrinter);
-                        await window.electronAPI.printBill({ printerName: kotPrinter, htmlContent: kotHtml });
-                        showNotification("KOT sent to printer", "success");
-                    } catch (kotErr) {
-                        console.error("KOT Printing failed:", kotErr);
-                        showNotification("KOT Print Failed", "error");
+                // Prepare items with Category info (Ensure cart items have Category attached)
+                // In handleCheckout, 'orderData.items' are constructed. We need to look at 'cart' or ensure 'orderData.items' has category info.
+                // 'cart' has full item objects including Category.
+                // 'orderData.items' might be stripped down. Let's use 'cart' for grouping logic or re-map.
+                // Actually, 'orderData' is constructed from 'cart' right before this.
+                // Let's assume 'cart' is available in scope (it is).
+
+                const itemsByStation = {};
+                cart.forEach(item => {
+                    const station = item.Category?.station || 'Kitchen';
+                    if (!itemsByStation[station]) itemsByStation[station] = [];
+                    itemsByStation[station].push(item);
+                });
+
+                const stations = Object.keys(itemsByStation);
+
+                if (isRoutingEnabled && Object.keys(stationMapping).length > 0) {
+                    // Multi-printer Logic
+                    for (const station of stations) {
+                        const printerName = stationMapping[station] || legacyKotPrinter;
+                        if (printerName) {
+                            // Small delay to prevent queue jams
+                            await new Promise(r => setTimeout(r, 500));
+
+                            const stationItems = itemsByStation[station];
+                            const partialOrder = {
+                                ...orderData,
+                                orderId: response.data?.id || orderData.orderNumber,
+                                items: stationItems
+                            };
+
+                            const kotHtml = generateKotHtml(partialOrder);
+                            console.log(`Printing KOT for Station: ${station} to ${printerName}`);
+                            await window.electronAPI.printBill({ printerName, htmlContent: kotHtml });
+                        }
+                    }
+                    showNotification("KOTs sent to kitchens", "success");
+                } else {
+                    // Legacy Single Printer
+                    if (legacyKotPrinter) {
+                        try {
+                            if (billPrinter === legacyKotPrinter) {
+                                await new Promise(r => setTimeout(r, 1500));
+                            }
+                            const kotHtml = generateKotHtml({
+                                ...orderData,
+                                orderId: response.data?.id || orderData.orderNumber,
+                                items: cart // Use cart to ensure full details if needed, or orderData.items
+                            });
+                            console.log("Printing KOT to:", legacyKotPrinter);
+                            await window.electronAPI.printBill({ printerName: legacyKotPrinter, htmlContent: kotHtml });
+                            showNotification("KOT sent to printer", "success");
+                        } catch (kotErr) {
+                            console.error("KOT Printing failed:", kotErr);
+                            showNotification("KOT Print Failed", "error");
+                        }
                     }
                 }
             } else {
