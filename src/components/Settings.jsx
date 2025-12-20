@@ -105,7 +105,7 @@ export function Settings() {
                                     const testHtml = `
                                         <html><body>
                                             <h3 style="text-align:center">Test Print</h3>
-                                            <p style="text-align:center">${new Date().toLocaleString()}</p>
+                                            <p style="text-align:center">${new Date() ? new Date().toLocaleString() : ''}</p>
                                             <hr/>
                                             <p style="text-align:center">Printer: ${selectedPrinter}</p>
                                             <p style="text-align:center">If you can read this, printing is working!</p>

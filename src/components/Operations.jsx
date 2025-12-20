@@ -67,7 +67,7 @@ export function Operations({ onNavigate }) {
                     </div>
                     <div className="text-right">
                         <a href="mailto:support@petpooja.com" className="hover:text-blue-600 flex items-center gap-2">
-                            Send a Mail: support@petpooja.com
+                            Send a Mail: support@gmail.com
                         </a>
                     </div>
                 </div>

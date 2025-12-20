@@ -11,24 +11,7 @@ export function Header({ title, onToggleSidebar, onNavigate }) {
             {/* Left Section */}
             <div className="flex items-center gap-2">
                 {/* Hamburger with Green Dot */}
-                <button
-                    onClick={onToggleSidebar}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md relative group"
-                >
-                    <Menu className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-gray-800"></span>
-                </button>
-
-                {/* Logo Area */}
-                <div className="flex items-center gap-1 mr-2 select-none">
-                    <div className="bg-red-600 text-white p-1 rounded-sm">
-                        <Home size={16} fill="currentColor" />
-                    </div>
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[10px] font-bold text-gray-500">PETPOOJA</span>
-                        <span className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">POSS</span>
-                    </div>
-                </div>
+                
 
                 {/* New Order Button */}
                 <button

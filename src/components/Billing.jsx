@@ -460,7 +460,8 @@ export function Billing({ resetSignal }) {
             ]);
 
             // Transform categories
-            const catNames = ['All', ...catRes.data.map(c => c.name)];
+            const catData = Array.isArray(catRes.data) ? catRes.data : [];
+            const catNames = ['All', ...catData.map(c => c.name)];
             setCategories(catNames);
 
             // Settings
@@ -468,7 +469,8 @@ export function Billing({ resetSignal }) {
                 setSettings(settingsRes.data);
             }
 
-            setItems(itemRes.data.map(i => {
+            const itemData = Array.isArray(itemRes.data) ? itemRes.data : [];
+            setItems(itemData.map(i => {
                 // Merge Item-specific variants with Group Master variants
                 // Logic: Item variants override Group variants if they share the same name
                 const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
@@ -995,17 +997,26 @@ export function Billing({ resetSignal }) {
                                     onClick={() => initiateAddToCart(item)}
                                     className="group relative flex flex-col items-center p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-md transition-all bg-gray-50 dark:bg-gray-700/30"
                                 >
-                                    {item.showImage && item.image ? (
-                                        <img
-                                            src={`http://localhost:5001${item.image}`}
-                                            alt={item.name}
-                                            className="w-20 h-20 rounded-full mb-3 object-cover shadow-sm group-hover:scale-105 transition-transform border border-gray-100"
-                                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                                        />
-                                    ) : null}
-                                    <div className={`w-20 h-20 rounded-full mb-3 ${item.color} dark:bg-opacity-20 flex items-center justify-center text-3xl shadow-sm group-hover:scale-105 transition-transform ${item.showImage && item.image ? 'hidden' : ''}`}>
-                                        🍔
-                                    </div>
+                                    {item.showImage && (
+                                        <>
+                                            {item.image ? (
+                                                <img
+                                                    src={`${import.meta.env.VITE_API_URL.replace('/api', '')}${item.image}`}
+                                                    alt={item.name}
+                                                    className="w-20 h-20 rounded-full mb-3 object-cover shadow-sm group-hover:scale-105 transition-transform border border-gray-100"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        if (e.target.nextSibling) {
+                                                            e.target.nextSibling.style.display = 'flex';
+                                                            e.target.nextSibling.classList.remove('hidden');
+                                                        }
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div className={`w-20 h-20 rounded-full mb-3 ${item.color || 'bg-gray-100'} dark:bg-opacity-20 flex items-center justify-center text-3xl shadow-sm group-hover:scale-105 transition-transform ${item.image ? 'hidden' : ''}`}>
+                                            </div>
+                                        </>
+                                    )}
                                     <h4 className="font-semibold text-gray-900 dark:text-white text-center text-sm">{item.name}</h4>
                                     <p className="text-orange-600 font-bold mt-1 text-sm">₹{item.price}</p>
                                     <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-orange-600">

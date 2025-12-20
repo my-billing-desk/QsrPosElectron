@@ -7,11 +7,10 @@ import { TableManagement } from './components/TableManagement';
 import { KotManagement } from './components/KotManagement';
 import { OrderHistory } from './components/OrderHistory';
 import { Settings } from './components/Settings';
-
 import { Operations } from './components/Operations';
 
 function App() {
-    const [activeTab, setActiveTab] = useState('operations'); // Default to Operations
+    const [activeTab, setActiveTab] = useState('billing');
     const [selectedTable, setSelectedTable] = useState(null);
     const [billingKey, setBillingKey] = useState(0);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
