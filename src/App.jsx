@@ -8,6 +8,7 @@ import { KotManagement } from './components/KotManagement';
 import { OrderHistory } from './components/OrderHistory';
 import { Settings } from './components/Settings';
 import { Operations } from './components/Operations';
+import { RunningOrders } from './components/RunningOrders';
 import { OnlineOrders } from './components/OnlineOrders';
 import { useOnlineOrders } from './hooks/useOnlineOrders';
 
@@ -69,6 +70,7 @@ function App() {
                     {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
                     {activeTab === 'kitchen_view' && <KotManagement />}
                     {activeTab === 'online_orders' && <OnlineOrders />}
+                    {activeTab === 'running_orders' && <RunningOrders />}
                     {activeTab === 'order_history' && <OrderHistory />}
                     {activeTab === 'print_config' && <Settings />}
 
