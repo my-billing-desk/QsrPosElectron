@@ -4,7 +4,7 @@
     "version": "0.1.0",
     "main": "main.cjs",
     "scripts": {
-        "dev": "concurrently \"vite --port 5569\" \"wait-on tcp:5569 && ELECTRON_RUN_AS_NODE= npx electron main.cjs\"",
+        "dev": "concurrently \"vite --port 5569\" \"wait-on tcp:5569 && npx electron main.cjs\"",
         "build": "vite build",
         "preview": "vite preview",
         "pack": "electron-builder --dir",

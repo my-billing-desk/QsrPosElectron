@@ -5,7 +5,7 @@ import {
     Home, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
-export function Header({ title, onToggleSidebar, onNavigate }) {
+export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
     return (
         <header className="h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-2 shadow-sm shrink-0 z-30 font-sans">
             {/* Left Section */}
@@ -95,7 +95,10 @@ export function Header({ title, onToggleSidebar, onNavigate }) {
                         <span className="text-[10px]">Zomato Help</span>
                     </div>
 
-                    <div className="flex flex-col items-center cursor-pointer hover:text-red-600 group text-red-500">
+                    <div
+                        className="flex flex-col items-center cursor-pointer hover:text-red-600 group text-red-500"
+                        onClick={onLogout}
+                    >
                         <LogOut className="w-6 h-6 mb-0.5" />
                         <span className="text-[10px]">Logout</span>
                     </div>

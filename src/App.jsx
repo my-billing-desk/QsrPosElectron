@@ -11,9 +11,11 @@ import { Operations } from './components/Operations';
 import { RunningOrders } from './components/RunningOrders';
 import { OnlineOrders } from './components/OnlineOrders';
 import { useOnlineOrders } from './hooks/useOnlineOrders';
-
-function App() {
+import { Login } from './components/Login';
+import { AuthProvider, useAuth } from './context/AuthContext';
+function AppContent() {
     useOnlineOrders();
+    const { user, logout } = useAuth();
     const [activeTab, setActiveTab] = useState('billing');
     const [selectedTable, setSelectedTable] = useState(null);
     const [billingKey, setBillingKey] = useState(0);
@@ -48,6 +50,10 @@ function App() {
         setActiveTab(tab);
     }
 
+    if (!user) {
+        return <Login />;
+    }
+
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans overflow-hidden">
             <Sidebar
@@ -55,6 +61,11 @@ function App() {
                 onTabChange={handleTabChange}
                 isCollapsed={isSidebarCollapsed}
                 toggleSidebar={toggleSidebar}
+                onLogout={() => {
+                    if (window.confirm("Are you sure you want to logout?")) {
+                        logout();
+                    }
+                }}
             />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -62,6 +73,11 @@ function App() {
                 <Header
                     onToggleSidebar={toggleSidebar}
                     onNavigate={handleTabChange}
+                    onLogout={() => {
+                        if (window.confirm("Are you sure you want to logout?")) {
+                            logout();
+                        }
+                    }}
                 />
 
                 <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900 flex flex-col">
@@ -89,6 +105,14 @@ function App() {
                 </main>
             </div>
         </div>
+    );
+}
+
+function App() {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
     );
 }
 

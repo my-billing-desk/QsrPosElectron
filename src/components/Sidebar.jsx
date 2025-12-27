@@ -3,7 +3,7 @@ import {
     LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag
 } from 'lucide-react';
 
-export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar }) {
+export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, onLogout }) {
     // State lifted to App.jsx
 
     // Desktop POS Menu Structure
@@ -78,7 +78,10 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar }) 
                     <RotateCcw className="w-5 h-5" />
                     {!isCollapsed && <span className="ml-3 font-medium text-sm">Reset Cache</span>}
                 </button>
-                <button className="w-full flex items-center p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Logout">
+                <button
+                    onClick={onLogout}
+                    className="w-full flex items-center p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Logout"
+                >
                     <LogOut className="w-5 h-5" />
                     {!isCollapsed && <span className="ml-3 font-medium text-sm">Logout</span>}
                 </button>
