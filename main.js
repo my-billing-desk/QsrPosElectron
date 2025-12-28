@@ -12,7 +12,14 @@ function logToFile(...args) {
 }
 
 // Debugging Electron load
+const electronPkg = require('electron');
+console.log('require("electron") value:', electronPkg);
+try {
+    console.log('require.resolve("electron"):', require.resolve('electron'));
+} catch (e) { console.log('resolve failed', e); }
+
 console.log('Electron module loaded type:', typeof app);
+console.log('Process versions:', process.versions);
 logToFile('App started');
 
 // IPC Handlers

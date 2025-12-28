@@ -2,14 +2,14 @@
     "name": "qsr-pos-electron",
     "private": true,
     "version": "0.1.0",
-    "main": "main.cjs",
+    "main": "main.js",
     "scripts": {
-        "dev": "concurrently \"vite --port 5569\" \"wait-on tcp:5569 && npx electron main.cjs\"",
+        "dev": "concurrently \"vite --port 5569\" \"wait-on tcp:5569 && electron .\"",
         "build": "vite build",
-        "preview": "vite preview",
         "pack": "electron-builder --dir",
         "dist": "vite build && electron-builder",
-        "dist:win": "vite build && electron-builder --win"
+        "dist:win": "vite build && electron-builder --win",
+        "web": "vite --port 5569"
     },
     "build": {
         "appId": "com.qsr.pos",
@@ -36,7 +36,7 @@
         "@vitejs/plugin-react": "^4.2.1",
         "autoprefixer": "^10.4.19",
         "concurrently": "^8.2.2",
-        "electron": "^30.0.0",
+        "electron": "^33.0.0",
         "electron-builder": "^24.13.3",
         "postcss": "^8.4.38",
         "tailwindcss": "^3.4.3",

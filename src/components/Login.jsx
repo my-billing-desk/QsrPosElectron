@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/api';
 
 export function Login() {
     const { login } = useAuth();
@@ -10,13 +11,19 @@ export function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // TODO: Validate against backend
-        if (username === 'admin' && password === 'admin') {
-            login({ username: 'admin', role: 'admin' });
-        } else if (username === 'cashier' && password === '1234') {
-            login({ username: 'cashier', role: 'cashier' });
-        } else {
-            setError('Invalid credentials');
+        setError('');
+
+        try {
+            const { data } = await authService.login({ username, password });
+
+            // Save token explicitly
+            localStorage.setItem('pos_token', data.token);
+
+            // Login in context
+            login(data.user);
+        } catch (err) {
+            console.error("Login failed", err);
+            setError(err.response?.data?.error || 'Invalid credentials or server error');
         }
     };
 

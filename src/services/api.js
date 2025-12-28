@@ -6,6 +6,14 @@ const api = axios.create({
     baseURL: API_URL,
 });
 
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('pos_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 export const request = {
     get: (url) => api.get(url),
     post: (url, data) => api.post(url, data),
@@ -31,6 +39,10 @@ export const specialNoteService = {
 
 export const settingsService = {
     getSettings: () => api.get('/settings')
+};
+
+export const authService = {
+    login: (credentials) => api.post('/auth/login', credentials)
 };
 
 export default api;

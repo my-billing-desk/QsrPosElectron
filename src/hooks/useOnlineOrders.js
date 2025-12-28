@@ -37,20 +37,28 @@ export const useOnlineOrders = () => {
 
                     // Send to printer
                     // Expecting window.electronAPI to be available
+                    // Send to printer
+                    // Expecting window.electronAPI to be available
                     if (window.electronAPI) {
-                        const printers = await window.electronAPI.getPrinters();
-                        // Find KOT printer or Default
-                        const kotPrinter = printers.find(p => p.name.toLowerCase().includes('kot')) || printers.find(p => p.isDefault);
+                        try {
+                            const printers = await window.electronAPI.getPrinters();
+                            // Find KOT printer or Default
+                            const kotPrinter = printers.find(p => p.name.toLowerCase().includes('kot')) || printers.find(p => p.isDefault);
 
-                        if (kotPrinter) {
-                            await window.electronAPI.printComponent(html, kotPrinter.name);
+                            if (kotPrinter) {
+                                await window.electronAPI.printComponent(html, kotPrinter.name);
 
-                            // Mark as printed
-                            await orderService.markKotPrinted(order.id);
-                            console.log("Printed and marked:", order.id);
-                        } else {
-                            console.warn("No KOT printer found");
+                                // Mark as printed
+                                await orderService.markKotPrinted(order.id);
+                                console.log("Printed and marked:", order.id);
+                            } else {
+                                console.warn("No KOT printer found");
+                            }
+                        } catch (e) {
+                            console.error("Printing failed:", e);
                         }
+                    } else {
+                        console.warn("Electron API not available, skipping print for:", order.orderNumber);
                     }
                 }
 
