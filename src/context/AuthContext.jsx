@@ -7,11 +7,8 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Load user from local storage or check session
-        const storedUser = localStorage.getItem('pos_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
+        // We do NOT restore user session on restart as per requirement:
+        // "always open with login page everytime when close and open"
         setLoading(false);
     }, []);
 

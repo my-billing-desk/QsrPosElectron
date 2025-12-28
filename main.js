@@ -122,12 +122,44 @@ function createWindow() {
     }
 }
 
+const db = require('./db');
+
 app.whenReady().then(() => {
+    db.initDb();
     createWindow();
 
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+});
+
+// Database IPC Handlers
+ipcMain.handle('db-verify-login', async (event, credentials) => {
+    return await db.verifyLocalLogin(credentials);
+});
+
+ipcMain.handle('db-sync-users', async (event, users) => {
+    return db.saveUsers(users);
+});
+
+ipcMain.handle('db-sync-menu', async (event, { categories, items, tenantId }) => {
+    return db.syncMenu(categories, items, tenantId);
+});
+
+ipcMain.handle('db-get-menu', async (event, tenantId) => {
+    return db.getLocalMenu(tenantId);
+});
+
+ipcMain.handle('db-save-order', async (event, order) => {
+    return db.saveOrder(order);
+});
+
+ipcMain.handle('db-get-queued-orders', async (event) => {
+    return db.getQueuedOrders();
+});
+
+ipcMain.handle('db-mark-synced', async (event, id) => {
+    return db.markOrderSynced(id);
 });
 
 app.on('window-all-closed', function () {

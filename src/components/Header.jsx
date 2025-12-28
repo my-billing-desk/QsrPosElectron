@@ -1,11 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Search, Menu, Power, Wifi, FileText, Clock,
     PauseCircle, Bell, Headphones, LogOut,
-    Home, ToggleLeft, ToggleRight
+    Home, ToggleLeft, ToggleRight, CloudUpload, WifiOff
 } from 'lucide-react';
+import { authService, menuService, orderService } from '../services/api';
+import { useSync } from '../hooks/useSync';
 
 export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
+    const [pendingOrders, setPendingOrders] = useState(0);
+    const { isSyncing: isDataSyncing, syncData } = useSync();
+    const [isInternalSyncing, setIsInternalSyncing] = useState(false);
+    const isSyncing = isDataSyncing || isInternalSyncing;
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        // Update online status
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        // Check pending orders every 5 seconds
+        const updateQueueStatus = async () => {
+            const length = await orderService.getQueueLength();
+            setPendingOrders(length);
+        };
+
+        const interval = setInterval(updateQueueStatus, 5000);
+        updateQueueStatus();
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+            clearInterval(interval);
+        };
+    }, []);
+
+    const handleSync = async () => {
+        if (isSyncing) return;
+        setIsInternalSyncing(true);
+        try {
+            console.log('--- Manual Sync Triggered ---');
+            // 1. Sync User & Menu Data
+            await syncData();
+
+            // 2. Sync Pending Orders
+            const result = await orderService.processQueue();
+
+            if (result.count > 0 || result.failed > 0) {
+                alert(`Sync Complete!\n- Data updated\n- Orders synced: ${result.count}\n- Failed: ${result.failed}`);
+            } else {
+                console.log('Sync Complete: Data refreshed, no pending orders.');
+            }
+
+            setPendingOrders(orderService.getQueueLength());
+        } catch (error) {
+            console.error('Manual sync failed:', error);
+            alert('Sync failed. Please check your internet connection.');
+        } finally {
+            setIsInternalSyncing(false);
+        }
+    };
     return (
         <header className="h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-2 shadow-sm shrink-0 z-30 font-sans">
             {/* Left Section */}
@@ -46,6 +102,25 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
             <div className="flex items-center gap-1 md:gap-4">
                 {/* Icons Group */}
                 <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+                    {/* Network Status & Sync Button */}
+                    <div
+                        className={`flex flex-col items-center cursor-pointer hover:text-gray-900 group relative ${!isOnline ? 'text-orange-500' : ''}`}
+                        onClick={handleSync}
+                        title={isOnline ? `${pendingOrders} orders pending sync` : 'Offline Mode'}
+                    >
+                        {isOnline ? (
+                            <CloudUpload className={`w-6 h-6 mb-0.5 ${isSyncing ? 'animate-bounce' : 'group-hover:text-green-600'}`} />
+                        ) : (
+                            <WifiOff className="w-6 h-6 mb-0.5" />
+                        )}
+                        <span className="text-[10px]">{isOnline ? 'Sync' : 'Offline'}</span>
+                        {pendingOrders > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                                {pendingOrders}
+                            </span>
+                        )}
+                    </div>
+
                     <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
                         <ToggleLeft className="w-6 h-6 mb-0.5 group-hover:text-blue-600" />
                         <span className="text-[10px]">Item On/Off</span>

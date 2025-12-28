@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { orderService } from '../services/api';
 import { ShoppingBag, Clock, Check, X, RefreshCw, Printer } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
+
 export function OnlineOrders() {
+    const { user } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -53,12 +57,40 @@ export function OnlineOrders() {
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">Manage orders from Zomato, Swiggy, and others</p>
                 </div>
-                <button
-                    onClick={fetchOrders}
-                    className="p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                >
-                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={async () => {
+                            try {
+                                const sources = ['Swiggy', 'Zomato'];
+                                const source = sources[Math.floor(Math.random() * sources.length)];
+                                await fetch(`http://localhost:5001/api/aggregators/webhook`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        source: source,
+                                        customer: { name: 'Test Customer ' + Math.floor(Math.random() * 100) },
+                                        totalAmount: 450,
+                                        items: [],
+                                        tenantId: user?.tenantId // Critical for multi-tenancy testing
+                                    })
+                                });
+                                toast.success(`Simulated ${source} order sent!`);
+                                fetchOrders();
+                            } catch (e) {
+                                toast.error("Simulation failed: " + e.message);
+                            }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-bold text-sm shadow-lg shadow-blue-500/30"
+                    >
+                        Simulate Order
+                    </button>
+                    <button
+                        onClick={fetchOrders}
+                        className="p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm"
+                    >
+                        <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
             </div>
 
             {orders.length === 0 ? (

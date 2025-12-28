@@ -11,11 +11,17 @@ import { Operations } from './components/Operations';
 import { RunningOrders } from './components/RunningOrders';
 import { OnlineOrders } from './components/OnlineOrders';
 import { useOnlineOrders } from './hooks/useOnlineOrders';
+import { useSync } from './hooks/useSync';
 import { Login } from './components/Login';
+import { TenantMapping } from './components/TenantMapping';
 import { AuthProvider, useAuth } from './context/AuthContext';
+
 function AppContent() {
-    useOnlineOrders();
     const { user, logout } = useAuth();
+    useOnlineOrders();
+    useSync();
+    const [mappedTenantId, setMappedTenantId] = useState(localStorage.getItem('pos_tenant_id'));
+    const [isTouchMode, setIsTouchMode] = useState(localStorage.getItem('pos_touch_mode') === 'true');
     const [activeTab, setActiveTab] = useState('billing');
     const [selectedTable, setSelectedTable] = useState(null);
     const [billingKey, setBillingKey] = useState(0);
@@ -29,6 +35,11 @@ function AppContent() {
             setIsSidebarCollapsed(false);
         }
     }, [activeTab]);
+
+    const handleTenantMap = (id, touchMode) => {
+        setMappedTenantId(id);
+        setIsTouchMode(touchMode);
+    };
 
     const toggleSidebar = () => {
         setIsSidebarCollapsed(prev => !prev);
@@ -50,8 +61,12 @@ function AppContent() {
         setActiveTab(tab);
     }
 
+    if (!mappedTenantId) {
+        return <TenantMapping onMap={handleTenantMap} />;
+    }
+
     if (!user) {
-        return <Login />;
+        return <Login isTouchMode={isTouchMode} />;
     }
 
     return (
