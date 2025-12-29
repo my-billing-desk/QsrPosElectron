@@ -3,27 +3,27 @@
 @tailwind utilities;
 
 :root {
-  /* Default theme colors - will be overridden by ThemeContext */
-  --color-primary: #dc2626;
-  --color-primary-h: 0;
-  --color-primary-s: 84%;
-  --color-primary-l: 50%;
-
-  /* Auto-generated variants */
-  --color-primary-50: hsl(0, 84%, 95%);
-  --color-primary-100: hsl(0, 84%, 90%);
-  --color-primary-200: hsl(0, 84%, 80%);
-  --color-primary-300: hsl(0, 84%, 70%);
-  --color-primary-400: hsl(0, 84%, 60%);
-  --color-primary-500: #dc2626;
-  --color-primary-600: hsl(0, 84%, 40%);
-  --color-primary-700: hsl(0, 84%, 30%);
-  --color-primary-800: hsl(0, 84%, 20%);
-  --color-primary-900: hsl(0, 84%, 10%);
+  /* POS Theme Defaults */
+  --pos-bg: #f1f5f9;
+  --pos-header: #ffffff;
+  --pos-sidebar: #ffffff;
+  --pos-cat-btn: #ffffff;
+  --pos-cat-active: #10b981;
+  --pos-cat-active-text: #ffffff;
+  --pos-item-card: #ffffff;
+  --pos-checkout-btn: #10b981;
+  --pos-checkout-btn-text: #ffffff;
+  --pos-confirm-btn: #10b981;
+  --pos-confirm-btn-text: #ffffff;
+  --pos-cancel-btn: #ef4444;
+  --pos-cancel-btn-text: #ffffff;
+  --pos-numpad-btn: #ffffff;
+  --pos-numpad-text: #1e293b;
 }
 
 @layer base {
   body {
+    background-color: var(--pos-bg);
     @apply antialiased;
   }
 }

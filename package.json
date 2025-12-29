@@ -2,7 +2,7 @@
     "name": "qsr-pos-electron",
     "private": true,
     "version": "0.1.0",
-    "main": "main.js",
+    "main": "app.js",
     "scripts": {
         "dev": "concurrently \"npx vite --port 5569\" \"npx wait-on tcp:5569 && npx electron .\"",
         "build": "vite build",
@@ -40,7 +40,7 @@
         "@vitejs/plugin-react": "^4.2.1",
         "autoprefixer": "^10.4.19",
         "concurrently": "^8.2.2",
-        "electron": "^33.0.0",
+        "electron": "32.0.0",
         "electron-builder": "^24.13.3",
         "electron-rebuild": "^3.2.9",
         "postcss": "^8.4.38",

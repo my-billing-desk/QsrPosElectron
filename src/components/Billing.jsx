@@ -1343,10 +1343,11 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                             <button
                                 key={cat}
                                 onClick={() => setActiveCategory(cat)}
-                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeCategory === cat
-                                    ? 'bg-orange-600 text-white shadow-md'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                    }`}
+                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors shadow-md`}
+                                style={{
+                                    backgroundColor: activeCategory === cat ? 'var(--pos-cat-active)' : 'var(--pos-cat-btn)',
+                                    color: activeCategory === cat ? 'var(--pos-cat-active-text)' : 'inherit'
+                                }}
                             >
                                 {cat}
                             </button>
@@ -1360,7 +1361,12 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                 <button
                                     key={item.id}
                                     onClick={() => initiateAddToCart(item)}
-                                    className="group relative flex flex-col items-center p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-md transition-all bg-gray-50 dark:bg-gray-700/30"
+                                    className="group relative flex flex-col items-center p-4 rounded-xl border hover:shadow-md transition-all"
+                                    style={{
+                                        backgroundColor: 'var(--pos-item-card)',
+                                        borderColor: 'var(--border-color)',
+                                        color: 'var(--item-text)'
+                                    }}
                                 >
                                     {item.showImage && (
                                         <>
@@ -1369,21 +1375,14 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                                     src={`${import.meta.env.VITE_API_URL.replace('/api', '')}${item.image}`}
                                                     alt={item.name}
                                                     className="w-20 h-20 rounded-full mb-3 object-cover shadow-sm group-hover:scale-105 transition-transform border border-gray-100"
-                                                    onError={(e) => {
-                                                        e.target.style.display = 'none';
-                                                        if (e.target.nextSibling) {
-                                                            e.target.nextSibling.style.display = 'flex';
-                                                            e.target.nextSibling.classList.remove('hidden');
-                                                        }
-                                                    }}
                                                 />
                                             ) : null}
                                             <div className={`w-20 h-20 rounded-full mb-3 ${item.color || 'bg-gray-100'} dark:bg-opacity-20 flex items-center justify-center text-3xl shadow-sm group-hover:scale-105 transition-transform ${item.image ? 'hidden' : ''}`}>
                                             </div>
                                         </>
                                     )}
-                                    <h4 className="font-semibold text-gray-900 dark:text-white text-center text-sm">{item.name}</h4>
-                                    <p className="text-orange-600 font-bold mt-1 text-sm">₹{item.price}</p>
+                                    <h4 className="font-semibold text-center text-sm">{item.name}</h4>
+                                    <p className="font-bold mt-1 text-sm" style={{ color: 'var(--pos-cat-active)' }}>₹{item.price}</p>
                                     <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-orange-600">
                                         <Plus className="w-4 h-4" />
                                     </div>
@@ -1557,7 +1556,8 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
                                 <button
                                     onClick={initiateCheckout}
-                                    className="flex-[1.5] bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95 group"
+                                    className="flex-[1.5] text-white flex items-center justify-center gap-3 hover:opacity-90 transition-all active:scale-95 group"
+                                    style={{ backgroundColor: 'var(--pos-checkout-btn)', color: 'var(--pos-checkout-btn-text)' }}
                                 >
                                     <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <span className="text-sm font-black uppercase tracking-widest">Checkout</span>

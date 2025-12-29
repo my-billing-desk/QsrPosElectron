@@ -1,121 +1,76 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { outletService } from '../services/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { settingsService } from '../services/api';
 
-const ThemeContext = createContext({
-    themeColor: '#dc2626',
-    themeName: 'Ruby Red',
-    loading: true,
-    refreshTheme: () => { },
-});
-
-// Helper to generate HSL variants from a hex color
-function hexToHsl(hex) {
-    let r = parseInt(hex.slice(1, 3), 16) / 255;
-    let g = parseInt(hex.slice(3, 5), 16) / 255;
-    let b = parseInt(hex.slice(5, 7), 16) / 255;
-
-    let max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h, s, l = (max + min) / 2;
-
-    if (max === min) {
-        h = s = 0;
-    } else {
-        let d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-            case g: h = ((b - r) / d + 2) / 6; break;
-            case b: h = ((r - g) / d + 4) / 6; break;
-            default: h = 0;
-        }
-    }
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-}
+const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-    const [themeColor, setThemeColor] = useState(() => {
-        return localStorage.getItem('pos_theme_color') || '#dc2626';
-    });
-    const [themeName, setThemeName] = useState(() => {
-        return localStorage.getItem('pos_theme_name') || 'Ruby Red';
+    const [theme, setTheme] = useState(() => {
+        const cached = localStorage.getItem('pos_theme_config');
+        return cached ? JSON.parse(cached) : null;
     });
     const [loading, setLoading] = useState(true);
 
+    const applyTheme = useCallback((themeData) => {
+        if (!themeData || !themeData.pos) return;
+
+        const root = document.documentElement;
+        const posTheme = themeData.pos;
+
+        // Map POS theme keys to CSS variables
+        const variableMap = {
+            'background': '--pos-bg',
+            'header': '--pos-header',
+            'sidebar': '--pos-sidebar',
+            'category_button': '--pos-cat-btn',
+            'category_active': '--pos-cat-active',
+            'category_active_text': '--pos-cat-active-text',
+            'item_card': '--pos-item-card',
+            'checkout_button': '--pos-checkout-btn',
+            'checkout_button_text': '--pos-checkout-btn-text',
+            'confirm_button': '--pos-confirm-btn',
+            'confirm_button_text': '--pos-confirm-btn-text',
+            'cancel_button': '--pos-cancel-btn',
+            'cancel_button_text': '--pos-cancel-btn-text',
+            'numpad_button': '--pos-numpad-btn',
+            'numpad_text': '--pos-numpad-text'
+        };
+
+        Object.entries(variableMap).forEach(([key, varName]) => {
+            if (posTheme[key]) {
+                root.style.setProperty(varName, posTheme[key]);
+            }
+        });
+    }, []);
+
     const fetchTheme = async () => {
         try {
-            const res = await outletService.getConfig();
-            if (res.data.success && res.data.data) {
-                const color = res.data.data.themeColor || '#dc2626';
-                const name = res.data.data.themeName || 'Ruby Red';
-                setThemeColor(color);
-                setThemeName(name);
-                localStorage.setItem('pos_theme_color', color);
-                localStorage.setItem('pos_theme_name', name);
+            const res = await settingsService.syncFromServer();
+            if (res.data.theme_config) {
+                const themeData = JSON.parse(res.data.theme_config);
+                setTheme(themeData);
+                applyTheme(themeData);
+                localStorage.setItem('pos_theme_config', JSON.stringify(themeData));
             }
         } catch (error) {
             console.error('Error fetching theme:', error);
-            // Use cached values from localStorage (already set in initial state)
+            // Fallback to cache
+            if (theme) applyTheme(theme);
         } finally {
             setLoading(false);
         }
     };
 
-    // Apply CSS variables when theme color changes
     useEffect(() => {
-        const hsl = hexToHsl(themeColor);
-        const root = document.documentElement;
-
-        // Set primary color CSS variables
-        root.style.setProperty('--color-primary', themeColor);
-        root.style.setProperty('--color-primary-h', hsl.h);
-        root.style.setProperty('--color-primary-s', `${hsl.s}%`);
-        root.style.setProperty('--color-primary-l', `${hsl.l}%`);
-
-        // Generate lighter and darker variants
-        root.style.setProperty('--color-primary-50', `hsl(${hsl.h}, ${hsl.s}%, 95%)`);
-        root.style.setProperty('--color-primary-100', `hsl(${hsl.h}, ${hsl.s}%, 90%)`);
-        root.style.setProperty('--color-primary-200', `hsl(${hsl.h}, ${hsl.s}%, 80%)`);
-        root.style.setProperty('--color-primary-300', `hsl(${hsl.h}, ${hsl.s}%, 70%)`);
-        root.style.setProperty('--color-primary-400', `hsl(${hsl.h}, ${hsl.s}%, 60%)`);
-        root.style.setProperty('--color-primary-500', themeColor);
-        root.style.setProperty('--color-primary-600', `hsl(${hsl.h}, ${hsl.s}%, ${Math.max(hsl.l - 10, 10)}%)`);
-        root.style.setProperty('--color-primary-700', `hsl(${hsl.h}, ${hsl.s}%, ${Math.max(hsl.l - 20, 5)}%)`);
-        root.style.setProperty('--color-primary-800', `hsl(${hsl.h}, ${hsl.s}%, ${Math.max(hsl.l - 30, 5)}%)`);
-        root.style.setProperty('--color-primary-900', `hsl(${hsl.h}, ${hsl.s}%, ${Math.max(hsl.l - 40, 5)}%)`);
-
-    }, [themeColor]);
-
-    // Fetch theme on mount and when tenant changes
-    useEffect(() => {
-        const tenantId = localStorage.getItem('pos_tenant_id');
-        if (tenantId) {
-            fetchTheme();
-        } else {
-            setLoading(false);
-        }
-    }, []);
-
-    // Listen for storage changes (when theme is updated from admin panel)
-    useEffect(() => {
-        const handleStorageChange = (e) => {
-            if (e.key === 'pos_theme_color' && e.newValue) {
-                setThemeColor(e.newValue);
-            }
-            if (e.key === 'pos_theme_name' && e.newValue) {
-                setThemeName(e.newValue);
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
-
-    const refreshTheme = () => {
         fetchTheme();
-    };
+    }, []);
+
+    // Also apply theme if we have it in state/cache immediately
+    useEffect(() => {
+        if (theme) applyTheme(theme);
+    }, [theme, applyTheme]);
 
     return (
-        <ThemeContext.Provider value={{ themeColor, themeName, loading, refreshTheme }}>
+        <ThemeContext.Provider value={{ theme, refreshTheme: fetchTheme, loading }}>
             {children}
         </ThemeContext.Provider>
     );
