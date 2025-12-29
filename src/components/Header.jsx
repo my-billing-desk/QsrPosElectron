@@ -59,7 +59,8 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
             alert(message);
 
             // Reload to ensure fresh data from local DB is displayed
-            window.location.reload();
+            // window.location.reload(); // Removed to prevent logout effect
+            console.log('Sync UI refresh complete (no reload)');
 
         } catch (error) {
             console.error('Manual sync failed:', error);

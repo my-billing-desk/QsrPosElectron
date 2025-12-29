@@ -337,7 +337,7 @@ export function Billing({ resetSignal }) {
         setCart([]);
         setOrderType('dine-in');
         setCustomizingItem(null);
-        setWorkflowStep('customer');
+        setWorkflowStep('cart');
         setCurrentCustomer(null);
         setCustomerPhone('');
         setCustomerName('');

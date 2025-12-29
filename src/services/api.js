@@ -27,8 +27,75 @@ export const request = {
 };
 
 export const orderService = {
-    getAll: (params) => api.get('/orders', { params }),
-    getOrders: (params) => api.get('/orders', { params }),
+    getAll: (params) => {
+        // Local-First: Read from Electron DB
+        if (window.electronAPI) {
+            return orderService.getLocalOrders(params);
+        }
+        return api.get('/orders', { params });
+    },
+    getOrders: (params) => {
+        if (window.electronAPI) {
+            return orderService.getLocalOrders(params);
+        }
+        return api.get('/orders', { params });
+    },
+
+    getLocalOrders: async (params) => {
+        try {
+            let localOrders = await window.electronAPI.getAllLocalOrders();
+
+            // Client-side filtering to match API behavior
+            if (params) {
+                localOrders = localOrders.filter(o => {
+                    // Status Filter
+                    if (params.status && params.status !== 'All') {
+                        // Map local 'queued'/'synced' to 'placed'/'completed' if needed, or just match exactly
+                        // The UI expects 'placed', 'served', 'completed', 'cancelled'
+                        // Locally we might have 'queued' (which effectively means placed)
+                        const s = o.status === 'queued' || o.status === 'synced' ? 'placed' : o.status;
+                        // If filter is 'placed', match 'queued'/'synced' too
+                        if (params.status === 'placed' && (o.status === 'queued' || o.status === 'synced')) return true;
+                        if (s !== params.status) return false;
+                    }
+
+                    // Type Filter
+                    if (params.type && params.type !== 'All' && o.type !== params.type) return false;
+
+                    // Order Number Search
+                    if (params.orderNumber && !o.orderNumber?.includes(params.orderNumber)) return false;
+
+                    // Customer Search
+                    if (params.customerName) {
+                        const search = params.customerName.toLowerCase();
+                        const name = (o.customerName || '').toLowerCase();
+                        const phone = (o.customerPhone || '').toLowerCase();
+                        if (!name.includes(search) && !phone.includes(search)) return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            // Normalize status for UI
+            localOrders = localOrders.map(o => ({
+                ...o,
+                // If status is 'queued' or 'synced', show as 'placed' for the user? Or keep as is?
+                // The UI badge logic is: completed(green), cancelled(red), default(yellow)
+                // 'queued' is yellow, reasonable.
+                // But let's standardise if possible.
+                // For now, passing raw status is safer as UI handles it.
+            }));
+
+            // Sort by Date Desc
+            localOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            return { data: localOrders };
+        } catch (err) {
+            console.error("Failed to fetch local orders", err);
+            return { data: [] };
+        }
+    },
 
     createOrder: async (data) => {
         // Local-First: Always save to Electron Local DB if available

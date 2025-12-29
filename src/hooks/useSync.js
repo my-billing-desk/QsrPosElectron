@@ -43,17 +43,16 @@ export function useSync() {
         }
     };
 
-    // NOTE: Auto-sync disabled for local-first approach
-    // Data is only synced when user explicitly clicks Sync button
-    // Uncomment below to enable periodic sync
-    /*
     useEffect(() => {
         if (user) {
-            const interval = setInterval(syncData, 15 * 60 * 1000); // 15 mins
+            console.log('Auto-sync scheduled for every 5 minutes');
+            const interval = setInterval(() => {
+                console.log('--- Triggering Auto Sync ---');
+                syncData().catch(e => console.error('Auto sync error:', e));
+            }, 5 * 60 * 1000); // 5 mins
             return () => clearInterval(interval);
         }
     }, [user?.id]);
-    */
 
     return { isSyncing, lastSync, syncData };
 }

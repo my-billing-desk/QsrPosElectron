@@ -45,6 +45,15 @@ export function TenantMapping({ onMap }) {
                         items: menu.items || [],
                         tenantId: tenant.id
                     });
+
+                    // Sync Settings (if available from response)
+                    if (data.settings && window.electronAPI.syncSettings) {
+                        await window.electronAPI.syncSettings(data.settings);
+                    } else if (data.settings) {
+                        // Fallback to localStorage
+                        localStorage.setItem('cached_settings', JSON.stringify(data.settings));
+                    }
+                    console.log('Initial sync completed for Tenant:', tenant.name);
                 } catch (dbErr) {
                     console.error('Local database sync failed:', dbErr);
                     throw new Error(`[Local DB Error] Failed to save data locally. ${dbErr.message}`);

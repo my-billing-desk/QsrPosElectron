@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { Billing } from './components/Billing';
-import { TableManagement } from './components/TableManagement';
-import { KotManagement } from './components/KotManagement';
-import { OrderHistory } from './components/OrderHistory';
-import { Settings } from './components/Settings';
-import { Operations } from './components/Operations';
-import { RunningOrders } from './components/RunningOrders';
-import { OnlineOrders } from './components/OnlineOrders';
+// Lazy Load Heavy Components
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const Billing = React.lazy(() => import('./components/Billing'));
+const TableManagement = React.lazy(() => import('./components/TableManagement'));
+const KotManagement = React.lazy(() => import('./components/KotManagement'));
+const OrderHistory = React.lazy(() => import('./components/OrderHistory').then(module => ({ default: module.OrderHistory })));
+const Settings = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
+const Operations = React.lazy(() => import('./components/Operations').then(module => ({ default: module.Operations })));
+const RunningOrders = React.lazy(() => import('./components/RunningOrders').then(module => ({ default: module.RunningOrders })));
+const OnlineOrders = React.lazy(() => import('./components/OnlineOrders').then(module => ({ default: module.OnlineOrders })));
+
 // import { useOnlineOrders } from './hooks/useOnlineOrders'; // Disabled auto-polling
 import { useSync } from './hooks/useSync';
 import { usePOSDeviceRegistration } from './hooks/usePOSDeviceRegistration';
@@ -17,6 +19,14 @@ import { Login } from './components/Login';
 import { TenantMapping } from './components/TenantMapping';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+
+// Loading Component
+const LoadingFallback = () => (
+    <div className="flex flex-col items-center justify-center h-full text-gray-400 animate-pulse">
+        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-medium">Loading Module...</p>
+    </div>
+);
 
 function AppContent() {
     const { user, logout } = useAuth();
@@ -99,14 +109,16 @@ function AppContent() {
                 />
 
                 <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900 flex flex-col">
-                    {activeTab === 'operations' && <Operations onNavigate={handleTabChange} />}
-                    {activeTab === 'dashboard' && <Dashboard />}
-                    {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
-                    {activeTab === 'kitchen_view' && <KotManagement />}
-                    {activeTab === 'online_orders' && <OnlineOrders />}
-                    {activeTab === 'running_orders' && <RunningOrders />}
-                    {activeTab === 'order_history' && <OrderHistory />}
-                    {activeTab === 'print_config' && <Settings />}
+                    <Suspense fallback={<LoadingFallback />}>
+                        {activeTab === 'operations' && <Operations onNavigate={handleTabChange} />}
+                        {activeTab === 'dashboard' && <Dashboard />}
+                        {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
+                        {activeTab === 'kitchen_view' && <KotManagement />}
+                        {activeTab === 'online_orders' && <OnlineOrders />}
+                        {activeTab === 'running_orders' && <RunningOrders />}
+                        {activeTab === 'order_history' && <OrderHistory />}
+                        {activeTab === 'print_config' && <Settings />}
+                    </Suspense>
 
                     {/* Placeholder for future POS modules */}
                     {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'online_orders', 'order_history', 'print_config'].includes(activeTab) && (
