@@ -2,8 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Default theme colors - will be overridden by ThemeContext */
+  --color-primary: #dc2626;
+  --color-primary-h: 0;
+  --color-primary-s: 84%;
+  --color-primary-l: 50%;
+
+  /* Auto-generated variants */
+  --color-primary-50: hsl(0, 84%, 95%);
+  --color-primary-100: hsl(0, 84%, 90%);
+  --color-primary-200: hsl(0, 84%, 80%);
+  --color-primary-300: hsl(0, 84%, 70%);
+  --color-primary-400: hsl(0, 84%, 60%);
+  --color-primary-500: #dc2626;
+  --color-primary-600: hsl(0, 84%, 40%);
+  --color-primary-700: hsl(0, 84%, 30%);
+  --color-primary-800: hsl(0, 84%, 20%);
+  --color-primary-900: hsl(0, 84%, 10%);
+}
+
 @layer base {
   body {
     @apply antialiased;
+  }
+}
+
+@layer utilities {
+
+  /* Dynamic theme color utilities */
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .bg-primary-50 {
+    background-color: var(--color-primary-50);
+  }
+
+  .bg-primary-100 {
+    background-color: var(--color-primary-100);
+  }
+
+  .bg-primary-200 {
+    background-color: var(--color-primary-200);
+  }
+
+  .bg-primary-600 {
+    background-color: var(--color-primary-600);
+  }
+
+  .bg-primary-700 {
+    background-color: var(--color-primary-700);
+  }
+
+  .text-primary {
+    color: var(--color-primary);
+  }
+
+  .text-primary-600 {
+    color: var(--color-primary-600);
+  }
+
+  .text-primary-700 {
+    color: var(--color-primary-700);
+  }
+
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+
+  .border-primary-200 {
+    border-color: var(--color-primary-200);
+  }
+
+  .ring-primary {
+    --tw-ring-color: var(--color-primary);
+  }
+
+  .hover\:bg-primary-600:hover {
+    background-color: var(--color-primary-600);
+  }
+
+  .hover\:bg-primary-700:hover {
+    background-color: var(--color-primary-700);
+  }
+
+  .focus\:ring-primary:focus {
+    --tw-ring-color: var(--color-primary);
+  }
+
+  /* Animations */
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 }

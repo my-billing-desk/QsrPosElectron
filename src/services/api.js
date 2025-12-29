@@ -31,41 +31,35 @@ export const orderService = {
     getOrders: (params) => api.get('/orders', { params }),
 
     createOrder: async (data) => {
-        if (!isOnline()) {
-            console.log('Offline: Queuing order');
-            const offlineOrder = { ...data, _tempId: Date.now(), isOffline: true, createdAt: new Date().toISOString() };
+        // Local-First: Always save to Electron Local DB if available
+        if (window.electronAPI) {
+            const localOrder = {
+                ...data,
+                _tempId: Date.now(),
+                isOffline: true,
+                createdAt: new Date().toISOString(),
+                status: 'queued' // Queued for sync
+            };
 
-            if (window.electronAPI) {
-                await window.electronAPI.saveOrder(offlineOrder);
-            } else {
-                const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-                queue.push(offlineOrder);
-                localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-            }
+            await window.electronAPI.saveOrder(localOrder);
+            console.log('Order saved locally (Local First)', localOrder);
 
             return {
-                data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' }
+                data: { ...localOrder, id: localOrder._tempId, status: 'completed' }
             };
         }
 
+        // Web Fallback
         try {
             return await api.post('/orders', data);
         } catch (error) {
             if (!error.response) {
                 console.log('Network Error: Queuing order');
                 const offlineOrder = { ...data, _tempId: Date.now(), isOffline: true, createdAt: new Date().toISOString() };
-
-                if (window.electronAPI) {
-                    await window.electronAPI.saveOrder(offlineOrder);
-                } else {
-                    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-                    queue.push(offlineOrder);
-                    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-                }
-
-                return {
-                    data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' }
-                };
+                const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+                queue.push(offlineOrder);
+                localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+                return { data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' } };
             }
             throw error;
         }
@@ -120,30 +114,103 @@ export const orderService = {
     markKotPrinted: (id) => api.post('/orders/mark-kot-printed', { id })
 };
 
+const SETTINGS_KEY = 'cached_settings';
+
+// ============================================
+// LOCAL-FIRST MENU SERVICE
+// Always reads from local DB, sync pulls from API
+// ============================================
+
 export const menuService = {
+    // Always read from local database first
     getItems: async () => {
-        try {
-            const res = await api.get('/menu/items');
-            localStorage.setItem(MENU_ITEMS_KEY, JSON.stringify(res.data));
-            return res;
-        } catch (error) {
-            console.warn('Fetch items failed, trying cache');
-            const cached = localStorage.getItem(MENU_ITEMS_KEY);
-            if (cached) return { data: JSON.parse(cached) };
-            throw error;
+        const tenantId = localStorage.getItem('pos_tenant_id');
+
+        // Try local SQLite database first (Electron)
+        if (window.electronAPI && tenantId) {
+            try {
+                const localMenu = await window.electronAPI.getLocalMenu(tenantId);
+                if (localMenu && localMenu.items && localMenu.items.length > 0) {
+                    console.log('[LOCAL-FIRST] Loaded', localMenu.items.length, 'items from local SQLite database');
+                    // Items are already complete objects from JSON storage
+                    return { data: localMenu.items };
+                }
+            } catch (err) {
+                console.warn('[LOCAL-FIRST] SQLite read failed:', err);
+            }
         }
+
+        // Fallback to localStorage cache
+        const cached = localStorage.getItem(MENU_ITEMS_KEY);
+        if (cached) {
+            console.log('[LOCAL-FIRST] Loaded items from localStorage cache');
+            return { data: JSON.parse(cached) };
+        }
+
+        console.warn('[LOCAL-FIRST] No local data found. Please sync.');
+        return { data: [] };
     },
+
+
     getCategories: async () => {
-        try {
-            const res = await api.get('/menu/categories');
-            localStorage.setItem(MENU_CATS_KEY, JSON.stringify(res.data));
-            return res;
-        } catch (error) {
-            console.warn('Fetch categories failed, trying cache');
-            const cached = localStorage.getItem(MENU_CATS_KEY);
-            if (cached) return { data: JSON.parse(cached) };
-            throw error;
+        const tenantId = localStorage.getItem('pos_tenant_id');
+
+        // Try local SQLite database first (Electron)
+        if (window.electronAPI && tenantId) {
+            try {
+                const localMenu = await window.electronAPI.getLocalMenu(tenantId);
+                if (localMenu && localMenu.categories && localMenu.categories.length > 0) {
+                    console.log('[LOCAL-FIRST] Loaded categories from local SQLite database');
+                    return { data: localMenu.categories };
+                }
+            } catch (err) {
+                console.warn('[LOCAL-FIRST] SQLite read failed:', err);
+            }
         }
+
+        // Fallback to localStorage cache
+        const cached = localStorage.getItem(MENU_CATS_KEY);
+        if (cached) {
+            console.log('[LOCAL-FIRST] Loaded categories from localStorage cache');
+            return { data: JSON.parse(cached) };
+        }
+
+        console.warn('[LOCAL-FIRST] No local data found. Please sync.');
+        return { data: [] };
+    },
+
+    // Sync function: Pulls from API and saves to local DB
+    syncFromServer: async () => {
+        const tenantId = localStorage.getItem('pos_tenant_id');
+        if (!tenantId) throw new Error('No tenant configured');
+
+        console.log('[SYNC] Fetching fresh data from server...');
+
+        // Fetch from API
+        const [catRes, itemRes] = await Promise.all([
+            api.get('/menu/categories'),
+            api.get('/menu/items')
+        ]);
+
+        const categories = catRes.data || [];
+        const items = itemRes.data || [];
+
+        // Save to localStorage (browser cache)
+        localStorage.setItem(MENU_CATS_KEY, JSON.stringify(categories));
+        localStorage.setItem(MENU_ITEMS_KEY, JSON.stringify(items));
+
+        // Save to local SQLite database (Electron) - pass complete items for offline addon/variant support
+        if (window.electronAPI) {
+            await window.electronAPI.syncMenu({
+                categories: categories,
+                items: items, // Pass complete item objects with addons/variants
+                tenantId: tenantId
+            });
+            console.log('[SYNC] Data saved to local SQLite database');
+        }
+
+        console.log('[SYNC] Sync complete:', categories.length, 'categories,', items.length, 'items');
+        return { categories, items };
     }
 };
 
@@ -152,8 +219,36 @@ export const specialNoteService = {
     create: (data) => api.post('/special-notes', data),
 };
 
+export const outletService = {
+    getConfig: () => api.get('/config/outlet'),
+};
+
 export const settingsService = {
-    getSettings: () => api.get('/settings')
+    // Read from cache first, sync updates from server
+    getSettings: async () => {
+        const cached = localStorage.getItem(SETTINGS_KEY);
+        if (cached) {
+            console.log('[LOCAL-FIRST] Loaded settings from cache');
+            return { data: JSON.parse(cached) };
+        }
+        // Return defaults if no cache
+        console.warn('[LOCAL-FIRST] No cached settings, using defaults');
+        return {
+            data: {
+                gst_mode: 'exclusive',
+                gst_percentage: '5',
+                accept_decimal: 'false'
+            }
+        };
+    },
+
+    // Sync settings from server
+    syncFromServer: async () => {
+        const res = await api.get('/settings');
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+        console.log('[SYNC] Settings synced from server');
+        return res;
+    }
 };
 
 export const authService = {

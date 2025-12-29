@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
-import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2, User, Tag, Save, CheckCircle, PauseCircle, ClipboardList } from 'lucide-react';
 import { SpecialNoteModal } from './SpecialNoteModal';
+import { ItemCustomizationModal } from './ItemCustomizationModal';
+import { UpsellReminderBanner, DEFAULT_UPSELL_REMINDER } from './UpsellReminderBanner';
+import { DiscountModal } from './DiscountModal';
+import { CartItem } from './CartItem';
+import { CustomerDetailsSection } from './CustomerDetailsSection';
+
+
+
 
 const generateBillHtml = (order, settings) => {
     const formatCurrency = (amount) => Number(amount).toFixed(2);
@@ -276,18 +284,42 @@ export function Billing({ resetSignal }) {
     const [categories, setCategories] = useState(['All']);
     const [items, setItems] = useState([]);
     const [settings, setSettings] = useState({ gst_mode: 'exclusive', gst_percentage: '5' });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
 
     // Customization State
     const [customizingItem, setCustomizingItem] = useState(null);
+    const [editingCartItem, setEditingCartItem] = useState(null); // Cart item being edited (null = new item)
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [selectedAddons, setSelectedAddons] = useState({}); // { groupId: [addonId, addonId] }
     const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
     const [incomingOrders, setIncomingOrders] = useState([]);
     const processedIdsRef = useRef(new Set());
 
+    // Held Orders State
+    const [heldOrdersModalOpen, setHeldOrdersModalOpen] = useState(false);
+    const [heldOrders, setHeldOrders] = useState([]);
+
     // Special Note State
     const [noteModalOpen, setNoteModalOpen] = useState(false);
     const [noteTargetIndex, setNoteTargetIndex] = useState(null);
+    // Customer Lookup State
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [customerName, setCustomerName] = useState('');
+    const [currentCustomer, setCurrentCustomer] = useState(null);
+    const [lookupLoading, setLookupLoading] = useState(false);
+
+    // Discount/Coupon State
+    const [showDiscountModal, setShowDiscountModal] = useState(false);
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [discount, setDiscount] = useState(0);
+
+    // Order Workflow Step
+    const [workflowStep, setWorkflowStep] = useState('cart'); // 'customer' or 'cart' - set to 'cart' to skip customer lookup during dev
+
+    // Upsell Reminders
+    const [upsellReminders, setUpsellReminders] = useState([DEFAULT_UPSELL_REMINDER]);
+
 
     const showNotification = (message, type = 'success') => {
         setNotification({ show: true, message, type });
@@ -302,13 +334,17 @@ export function Billing({ resetSignal }) {
 
     // Handle Reset Signal
     useEffect(() => {
-        if (resetSignal > 0) {
-            setCart([]);
-            setOrderType('dine-in');
-            setCustomizingItem(null);
-            // Optionally reset category too
-            setActiveCategory('All');
-        }
+        setCart([]);
+        setOrderType('dine-in');
+        setCustomizingItem(null);
+        setWorkflowStep('customer');
+        setCurrentCustomer(null);
+        setCustomerPhone('');
+        setCustomerName('');
+        setAppliedCoupon(null);
+        setDiscount(0);
+        // Optionally reset category too
+        setActiveCategory('All');
     }, [resetSignal]);
 
     // Polling for Scan & Order Remote Printing
@@ -485,7 +521,10 @@ export function Billing({ resetSignal }) {
     };
 
     const loadData = async () => {
+        setIsLoading(true);
+
         try {
+            // LOCAL-FIRST: These calls read from local SQLite DB first
             const [catRes, itemRes, settingsRes] = await Promise.all([
                 menuService.getCategories(),
                 menuService.getItems(),
@@ -503,30 +542,38 @@ export function Billing({ resetSignal }) {
             }
 
             const itemData = Array.isArray(itemRes.data) ? itemRes.data : [];
-            setItems(itemData.map(i => {
-                // Merge Item-specific variants with Group Master variants
-                // Logic: Item variants override Group variants if they share the same name
-                const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
-                const itemVariants = i.Variants || [];
 
-                const variantMap = new Map();
-                // 1. Add group variants first (defaults)
-                groupVariants.forEach(v => variantMap.set(v.name, v));
-                // 2. Add item variants (overrides)
-                itemVariants.forEach(v => variantMap.set(v.name, v));
+            // Check if we need to sync (no local data)
+            if (itemData.length === 0 && catData.length === 0) {
+                setIsOfflineMode(true); // Reuse this flag to show "needs sync" state
+                showNotification("No menu data found. Please click Sync to download menu.", "error");
+            } else {
+                setIsOfflineMode(false);
+                setItems(itemData.map(i => {
+                    // Merge Item-specific variants with Group Master variants
+                    const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
+                    const itemVariants = i.Variants || [];
 
-                const allVariants = Array.from(variantMap.values());
+                    const variantMap = new Map();
+                    groupVariants.forEach(v => variantMap.set(v.name, v));
+                    itemVariants.forEach(v => variantMap.set(v.name, v));
 
-                return {
-                    ...i,
-                    Variants: allVariants,
-                    type: i.isVeg ? 'Veg' : 'Non-Veg',
-                    color: 'bg-white'
-                };
-            }));
+                    const allVariants = Array.from(variantMap.values());
+
+                    return {
+                        ...i,
+                        Variants: allVariants,
+                        type: i.isVeg ? 'Veg' : 'Non-Veg',
+                        color: 'bg-white'
+                    };
+                }));
+                console.log('[LOCAL-FIRST] Loaded', itemData.length, 'items from local database');
+            }
         } catch (error) {
-            console.error("Failed to load data", error);
-            showNotification("Failed to load menu data", "error");
+            console.error("Failed to load data from local DB:", error);
+            showNotification("Error loading menu. Please try again.", "error");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -578,21 +625,24 @@ export function Billing({ resetSignal }) {
             });
         }
 
-        addToCart(customizingItem, selectedVariant, addonsList);
+        saveCartItem(customizingItem, selectedVariant, addonsList);
         setCustomizingItem(null);
         setSelectedVariant(null);
         setSelectedAddons({});
+        setEditingCartItem(null);
     };
 
-    const addToCart = (item, variant, addons = []) => {
+    const addToCart = (item, variant, addons = [], qty = 1, specialNote = '') => {
         setCart(prev => {
             // Generate unique signature for "same item" check
-            const signature = `${item.id}-${variant ? variant.id : 'base'}-${addons.map(a => a.id).sort().join(',')}`;
+            // We include specialNote in signature if we want items with different notes to be separate? 
+            // Usually notes make them separate items in KOT.
+            const signature = `${item.id}-${variant ? variant.id : 'base'}-${addons.map(a => a.id).sort().join(',')}-${specialNote}`;
 
             const existingIndex = prev.findIndex(i => i.signature === signature);
             if (existingIndex >= 0) {
                 const newCart = [...prev];
-                newCart[existingIndex].qty += 1;
+                newCart[existingIndex].qty += qty;
                 return newCart;
             }
 
@@ -605,14 +655,46 @@ export function Billing({ resetSignal }) {
             return [...prev, {
                 ...item,
                 signature,
-                qty: 1,
+                qty: qty,
                 variant: variant,
                 selectedAddons: addons,
-                displayPrice: finalPrice, // Store the unit price for this configuration
-                price: finalPrice, // Override base price for calculation
-                specialNote: '' // Initialize special note
+                displayPrice: finalPrice,
+                price: finalPrice,
+                specialNote: specialNote
             }];
         });
+    };
+
+    const handlePhoneChange = async (val) => {
+        const phone = val.replace(/\D/g, '').slice(0, 10);
+        setCustomerPhone(phone);
+
+        if (phone.length === 10) {
+            setLookupLoading(true);
+            try {
+                const token = localStorage.getItem('pos_token');
+                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/customers/lookup/${phone}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setCurrentCustomer(data);
+                    setCustomerName(data.customer.name || '');
+                    showNotification(`Welcome back, ${data.customer.name || 'Valued Customer'}!`);
+                } else {
+                    // New Customer
+                    setCurrentCustomer({ isNew: true, customer: { mobileNumber: phone, name: '', customerTier: 'regular' } });
+                }
+            } catch (err) {
+                console.error("Lookup failed:", err);
+            } finally {
+                setLookupLoading(false);
+            }
+        } else {
+            setCurrentCustomer(null);
+            setCustomerName('');
+        }
     };
 
     const updateQty = (signature, delta) => {
@@ -626,6 +708,80 @@ export function Billing({ resetSignal }) {
 
     const removeItem = (signature) => {
         setCart(prev => prev.filter(i => i.signature !== signature));
+    };
+
+    // Edit Cart Item - Opens customization modal with current selections
+    const editCartItem = (cartItemData) => {
+        // Find the original item from items list
+        const originalItem = items.find(i => i.id === cartItemData.itemId);
+        if (!originalItem) {
+            showNotification("Item not found for editing", "error");
+            return;
+        }
+
+        // Store reference to the cart item being edited
+        setEditingCartItem(cartItemData);
+
+        // Pre-select the variant
+        if (cartItemData.variantName && originalItem.Variants) {
+            const variant = originalItem.Variants.find(v => v.name === cartItemData.variantName);
+            setSelectedVariant(variant || null);
+        } else {
+            setSelectedVariant(null);
+        }
+
+        // Pre-select addons
+        if (cartItemData.addons && cartItemData.addons.length > 0 && originalItem.addonGroups) {
+            const preSelectedAddons = {};
+            originalItem.addonGroups.forEach(group => {
+                const selectedFromGroup = cartItemData.addons
+                    .filter(a => group.Addons?.some(ga => ga.id === a.id))
+                    .map(a => a.id);
+                if (selectedFromGroup.length > 0) {
+                    preSelectedAddons[group.id] = selectedFromGroup;
+                }
+            });
+            setSelectedAddons(preSelectedAddons);
+        } else {
+            setSelectedAddons({});
+        }
+
+        // Open the customization modal
+        setCustomizingItem(originalItem);
+    };
+
+    // Update addToCart to handle editing
+    const saveCartItem = (item, variant, addons = [], qty = 1, specialNote = '') => {
+        if (editingCartItem) {
+            // Update existing item
+            const newSignature = `${item.id}-${variant ? variant.id : 'base'}-${addons.map(a => a.id).sort().join(',')}-${specialNote}`;
+
+            let finalPrice = variant ? variant.price : item.price;
+            const addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
+            finalPrice += addonsTotal;
+
+            setCart(prev => prev.map(cartItem => {
+                if (cartItem.signature === editingCartItem.id) {
+                    return {
+                        ...item,
+                        signature: newSignature,
+                        qty: cartItem.qty, // Keep existing quantity
+                        variant: variant,
+                        selectedAddons: addons,
+                        displayPrice: finalPrice,
+                        price: finalPrice,
+                        specialNote: specialNote
+                    };
+                }
+                return cartItem;
+            }));
+
+            setEditingCartItem(null);
+            showNotification("Item updated!");
+        } else {
+            // Add new item (existing logic)
+            addToCart(item, variant, addons, qty, specialNote);
+        }
     };
 
     // Special Note Handlers
@@ -676,16 +832,103 @@ export function Billing({ resetSignal }) {
     // If accept_decimal != 'true' -> Round Off
 
     let roundOffValue = 0;
-    const rawTotal = finalTotal;
+    const billTotal = finalTotal; // Total before discount and rounding adjustments
 
     if (settings.accept_decimal !== 'true') {
         const roundedTotal = Math.round(finalTotal);
-        roundOffValue = roundedTotal - finalTotal; // can be + or -
+        roundOffValue = roundedTotal - finalTotal;
         finalTotal = roundedTotal;
-    } else {
-        // Keep 2 decimal places fixed for UI consistency, but value is float
-        // Actually, let's keep it as float
     }
+
+    // Apply discount
+    finalTotal = Math.max(0, finalTotal - discount);
+
+    // Held Orders Logic
+    const loadHeldOrders = async () => {
+        if (!window.electronAPI) return;
+        try {
+            const allOrders = await window.electronAPI.getAllLocalOrders();
+            const held = allOrders.filter(o => o.status === 'hold');
+            setHeldOrders(held);
+        } catch (err) {
+            console.error("Failed to load held orders:", err);
+        }
+    };
+
+    useEffect(() => {
+        loadHeldOrders();
+    }, []);
+
+    const handleHoldOrder = async () => {
+        if (cart.length === 0) return;
+
+        try {
+            const tempId = `HOLD-${Date.now()}`;
+            const heldOrder = {
+                id: tempId,
+                items: cart, // Store full cart items array to preserve editability
+                totalAmount: finalTotal,
+                taxAmount,
+                subTotal: subtotal,
+                type: orderType,
+                orderNumber: tempId, // Temporary ID
+                customer: currentCustomer,
+                customerName: customerName || (currentCustomer?.customer?.name),
+                customerPhone: customerPhone,
+                createdAt: new Date().toISOString()
+            };
+
+            if (window.electronAPI) {
+                await window.electronAPI.saveOrder(heldOrder, 'hold');
+                showNotification("Order put on HOLD", "success");
+                setCart([]);
+                setCustomerName('');
+                setCustomerPhone('');
+                setCurrentCustomer(null);
+                loadHeldOrders();
+            } else {
+                showNotification("Electron API not available", "error");
+            }
+        } catch (err) {
+            console.error("Failed to hold order:", err);
+            showNotification("Failed to hold order", "error");
+        }
+    };
+
+    const resumeHeldOrder = async (order) => {
+        setCart(order.items || []); // Restore items
+        // Restore customer info
+        if (order.customer) {
+            setCurrentCustomer(order.customer);
+            setCustomerName(order.customerName || '');
+            setCustomerPhone(order.customerPhone || '');
+        } else if (order.customerPhone) {
+            setCustomerPhone(order.customerPhone);
+            setCustomerName(order.customerName || '');
+            handlePhoneChange(order.customerPhone); // Try to fetch fresh details
+        }
+
+        setOrderType(order.type || 'dine-in');
+
+        // Remove from DB (consume it)
+        if (window.electronAPI && order.id) {
+            await window.electronAPI.deleteOrder(order.id);
+            loadHeldOrders();
+        }
+
+        showNotification("Held order resumed!");
+        setHeldOrdersModalOpen(false);
+    };
+
+    const handleDiscardHeldOrder = async (order) => {
+        if (!window.confirm("Are you sure you want to discard this held order?")) return;
+
+        if (window.electronAPI && order.id) {
+            await window.electronAPI.deleteOrder(order.id);
+            showNotification("Held order discarded");
+            loadHeldOrders();
+        }
+    };
 
     const handleCheckout = async () => {
         if (cart.length === 0) return;
@@ -820,6 +1063,24 @@ export function Billing({ resetSignal }) {
 
     return (
         <div className="flex h-full gap-6 p-6 overflow-hidden relative">
+            {/* Loading Overlay */}
+            {isLoading && (
+                <div className="absolute inset-0 bg-gray-900/50 z-[300] flex items-center justify-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-gray-700 dark:text-gray-300 font-medium">Loading Menu...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Offline Mode Banner */}
+            {isOfflineMode && !isLoading && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[250] bg-amber-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    SYNC REQUIRED - Click Sync button to download menu
+                </div>
+            )}
+
             <SpecialNoteModal
                 isOpen={noteModalOpen}
                 onClose={() => setNoteModalOpen(false)}
@@ -887,135 +1148,108 @@ export function Billing({ resetSignal }) {
                     </div>
                 </div>
             )}
-            {/* Customization Modal */}
-            {customizingItem && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden transform transition-all scale-100">
-                        {/* Modal Header */}
-                        <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{customizingItem.name}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Customize your order</p>
-                            </div>
-                            <button
-                                onClick={() => setCustomizingItem(null)}
-                                className="p-2 hover:bg-gray-200 rounded-full dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-                            >
-                                <Trash2 className="w-5 h-5 rotate-45" />
+            <ItemCustomizationModal
+                isOpen={!!customizingItem}
+                onClose={() => {
+                    setCustomizingItem(null);
+                    setEditingCartItem(null);
+                    setSelectedVariant(null);
+                    setSelectedAddons({});
+                }}
+                item={customizingItem}
+                orderType={orderType}
+                editMode={!!editingCartItem}
+                initialVariant={selectedVariant}
+                initialAddons={selectedAddons}
+                onAddToCart={(item, variant, addons, quantity, note) => {
+                    saveCartItem(item, variant, addons, quantity, note);
+                    setCustomizingItem(null);
+                    setEditingCartItem(null);
+                }}
+            />
+
+            {/* Held Orders Modal */}
+            {heldOrdersModalOpen && (
+                <div className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white dark:bg-gray-900 w-full max-w-md h-full shadow-2xl border-l border-gray-200 dark:border-gray-800 flex flex-col animate-slide-in-right">
+                        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                                <PauseCircle className="w-6 h-6 text-yellow-500" />
+                                Held Orders
+                            </h3>
+                            <button onClick={() => setHeldOrdersModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                                <Plus className="w-6 h-6 rotate-45 text-gray-400" />
                             </button>
                         </div>
-
-                        {/* Modal Body */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            {/* Variants Section */}
-                            {customizingItem.Variants && customizingItem.Variants.length > 0 && (
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-1 h-5 bg-orange-500 rounded-full"></div>
-                                        <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm uppercase tracking-wide">Choose Variation</h4>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {customizingItem.Variants.filter(v => {
-                                            if (orderType === 'delivery') return v.isDelivery !== false;
-                                            if (orderType === 'takeaway') return v.isTakeaway !== false;
-                                            return v.isDineIn !== false; // default dine-in
-                                        }).map(v => {
-                                            const isSelected = selectedVariant?.id === v.id;
-                                            return (
-                                                <div
-                                                    key={v.id}
-                                                    onClick={() => setSelectedVariant(v)}
-                                                    className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group ${isSelected
-                                                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-md'
-                                                        : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-200 dark:hover:border-orange-800 hover:shadow-sm'}`}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-orange-500' : 'border-gray-300 dark:border-gray-600 group-hover:border-orange-400'}`}>
-                                                            {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
-                                                        </div>
-                                                        <span className={`font-semibold ${isSelected ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>{v.name}</span>
-                                                    </div>
-                                                    <span className={`font-bold ${isSelected ? 'text-orange-600 dark:text-orange-400' : 'text-gray-500 dark:text-gray-400'}`}>₹{v.price}</span>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {heldOrders.length === 0 ? (
+                                <div className="text-center py-10 text-gray-400">No held orders found</div>
+                            ) : (
+                                heldOrders.map(order => (
+                                    <div key={order.orderNumber} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-yellow-500/50 transition-colors">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                                    {order.orderNumber}
+                                                    <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full uppercase tracking-wide">Held</span>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Addons Section */}
-                            {customizingItem.addonGroups && customizingItem.addonGroups.map(group => (
-                                <div key={group.id} className="space-y-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
-                                            <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm uppercase tracking-wide">{group.name}</h4>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    {new Date(order.createdAt).toLocaleString()} • {order.type}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-black text-lg text-gray-900 dark:text-white">₹{order.totalAmount}</div>
+                                                {order.customerName && <div className="text-xs text-gray-500">{order.customerName}</div>}
+                                            </div>
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full uppercase tracking-wider">
-                                            {group.maxSelection > 1 ? `Select up to ${group.maxSelection}` : 'Select 1'}
-                                        </span>
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                                            <div className="text-xs text-gray-500">
+                                                {order.items?.length} Items • {(order.items || []).map(i => i.name).join(', ').slice(0, 30)}...
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => handleDiscardHeldOrder(order)}
+                                                    className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wide flex items-center gap-2"
+                                                >
+                                                    Discard
+                                                </button>
+                                                <button
+                                                    onClick={() => resumeHeldOrder(order)}
+                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wide flex items-center gap-2"
+                                                >
+                                                    Resume <ClipboardList className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {group.Addons.map(addon => {
-                                            const isSelected = (selectedAddons[group.id] || []).includes(addon.id);
-                                            return (
-                                                <label key={addon.id} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10 shadow-sm' : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`flex items-center justify-center w-5 h-5 rounded ${group.maxSelection > 1 ? 'border-2' : 'border-2 rounded-full'} ${isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
-                                                            {group.maxSelection > 1
-                                                                ? (isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>)
-                                                                : (isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />)
-                                                            }
-                                                        </div>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={() => handleAddonToggle(group, addon)}
-                                                            className="hidden"
-                                                        />
-                                                        <span className={`font-medium flex items-center gap-2 ${isSelected ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                                                            <span className="text-[10px]">{addon.type === 'veg' ? '🟢' : '🔴'}</span> {addon.name}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">+₹{addon.price}</span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Modal Footer (Total & Action) */}
-                        <div className="p-5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Total Amount</p>
-                                <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                                    ₹{((selectedVariant ? selectedVariant.price : customizingItem.price) +
-                                        (
-                                            customizingItem.addonGroups?.reduce((acc, g) => {
-                                                const selectedIds = selectedAddons[g.id] || [];
-                                                const groupTotal = selectedIds.reduce((sum, id) => {
-                                                    const a = g.Addons.find(x => x.id === id);
-                                                    return sum + (a ? a.price : 0);
-                                                }, 0);
-                                                return acc + groupTotal;
-                                            }, 0) || 0
-                                        )
-                                    ).toFixed(2)}
-                                </div>
-                            </div>
-                            <button
-                                onClick={confirmCustomization}
-                                className="px-8 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-600/30 transition-all transform active:scale-95 flex items-center gap-2"
-                            >
-                                <span>Add Item</span>
-                                <Plus className="w-5 h-5" />
-                            </button>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
             )}
+
+            <DiscountModal
+                isOpen={showDiscountModal}
+                orderTotal={subtotal}
+                taxAmount={taxAmount}
+                orderType={orderType}
+                settings={settings}
+                onClose={() => setShowDiscountModal(false)}
+                onApplyCoupon={(coupon, amount) => {
+                    if (coupon) {
+                        const couponWithAmount = { ...coupon, discountAmount: amount };
+                        setAppliedCoupon(couponWithAmount);
+                        setDiscount(amount);
+                        showNotification(`Coupon ${coupon.code} applied!`);
+                    } else {
+                        setAppliedCoupon(null);
+                        setDiscount(0);
+                    }
+                }}
+                appliedCoupon={appliedCoupon}
+            />
+
 
 
             {/* Menu Area */}
@@ -1049,6 +1283,7 @@ export function Billing({ resetSignal }) {
                 </div>
 
                 <div className="flex flex-1 overflow-hidden">
+
                     {/* Categories Sidebar */}
                     <div className="w-48 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-2 space-y-2">
                         {categories.map(cat => (
@@ -1106,115 +1341,185 @@ export function Billing({ resetSignal }) {
                 </div>
             </div>
 
-            {/* Cart Area */}
+            {/* Right Area (Customer Info or Cart) */}
             <div className="w-80 flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden shrink-0">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-                    <h3 className="font-bold text-lg text-gray-800 dark:text-white">Current Order</h3>
-                    <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold shadow-sm border border-blue-200 uppercase">
-                        {orderType}
-                    </span>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                            <ShoppingBag className="w-12 h-12 mb-2 opacity-20" />
-                            <p>Cart is empty</p>
-                            <p className="text-sm">Select items to start ordering</p>
+                {workflowStep === 'customer' ? (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col items-center text-center">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-1">Customer Information</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium italic">Enter customer information to proceed</p>
+                            {customerPhone && (
+                                <button
+                                    onClick={() => {
+                                        setCustomerPhone('');
+                                        setCustomerName('');
+                                        setCurrentCustomer(null);
+                                    }}
+                                    className="mt-3 text-blue-600 hover:text-blue-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full"
+                                >
+                                    Clear & Reset
+                                </button>
+                            )}
                         </div>
-                    ) : (
-                        cart.map((item, idx) => (
-                            <div key={item.signature} className="flex flex-col p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex-1">
-                                        <h4
-                                            className="font-medium text-gray-900 dark:text-white text-sm cursor-pointer hover:text-orange-600 transition-colors"
-                                            onClick={() => openSpecialNoteModal(idx)}
-                                            title="Click to add note"
-                                        >
-                                            {item.name} <Edit2 size={10} className="inline ml-1 opacity-50" />
-                                        </h4>
-                                        {/* Variation Tag */}
-                                        {item.variant && <span className="text-[10px] bg-orange-100 text-orange-800 px-1 rounded block w-fit mt-0.5">{item.variant.name}</span>}
-                                        {/* Addons List */}
-                                        {item.selectedAddons && item.selectedAddons.length > 0 && (
-                                            <div className="text-[10px] text-gray-500 mt-1">
-                                                {item.selectedAddons.map(a => (
-                                                    <span key={a.id} className="block">+ {a.name} (₹{a.price})</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {/* Special Note */}
-                                        {item.specialNote && (
-                                            <div className="text-[10px] text-blue-600 font-medium mt-1 italic">
-                                                Note: {item.specialNote}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="text-right pl-2">
-                                        <p className="font-bold text-gray-900 dark:text-white text-sm">₹{(item.price * item.qty).toFixed(2)}</p>
-                                    </div>
+
+                        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                            {/* Mobile Info */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mobile Number *</label>
+                                    {currentCustomer && !currentCustomer.isNew && <span className="bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">Existing Member</span>}
+                                    {currentCustomer?.isNew && <span className="bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded text-[8px] font-black uppercase">New Customer</span>}
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-gray-400">@ ₹{item.price.toFixed(2)}/ea</span>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => updateQty(item.signature, -1)} className="p-1 rounded bg-white dark:bg-gray-600 shadow-sm hover:bg-gray-100 text-gray-600 dark:text-gray-200">
-                                            <Minus className="w-3 h-3" />
-                                        </button>
-                                        <span className="w-6 text-center font-medium text-sm">{item.qty}</span>
-                                        <button onClick={() => updateQty(item.signature, 1)} className="p-1 rounded bg-white dark:bg-gray-600 shadow-sm hover:bg-gray-100 text-gray-600 dark:text-gray-200">
-                                            <Plus className="w-3 h-3" />
-                                        </button>
-                                        <div className="w-4"></div>
-                                        <button onClick={() => removeItem(item.signature)} className="text-red-400 hover:text-red-500">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
+                                <div className={`flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border-2 rounded-2xl transition-all ${currentCustomer && !currentCustomer.isNew ? 'border-green-500/30' : 'border-gray-100 dark:border-gray-800 focus-within:border-blue-500/50'}`}>
+                                    <Search className={`w-4 h-4 ${lookupLoading ? 'animate-spin text-blue-500' : currentCustomer && !currentCustomer.isNew ? 'text-green-500' : 'text-gray-400'}`} />
+                                    <input
+                                        type="tel"
+                                        maxLength="10"
+                                        placeholder="Enter customer number..."
+                                        className="flex-1 bg-transparent border-none outline-none font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                                        value={customerPhone}
+                                        onChange={(e) => handlePhoneChange(e.target.value)}
+                                    />
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
 
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-                    <div className="space-y-2 mb-4 text-sm">
-                        <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                            <span>Subtotal</span>
-                            <span>₹{subtotal.toFixed(2)}</span>
+                            {/* Full Name */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Full Name</label>
+                                <div className="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus-within:border-blue-500/50 transition-all">
+                                    <User className="w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Enter full name..."
+                                        className="flex-1 bg-transparent border-none outline-none font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                                        value={customerName}
+                                        onChange={(e) => setCustomerName(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Details & Membership */}
+                            {currentCustomer && !currentCustomer.isNew && <CustomerDetailsSection customer={currentCustomer} />}
                         </div>
-                        <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                            <span>
-                                {isInclusive ? 'Included GST' : 'GST'} ({gstPercent}%)
+
+                        {/* Footer Action */}
+                        <div className="p-5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20">
+                            <button
+                                onClick={() => setWorkflowStep('cart')}
+                                disabled={customerPhone.length < 10}
+                                className={`w-full py-4 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 group ${customerPhone.length === 10 ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none'}`}
+                            >
+                                <span>{currentCustomer ? 'Confirm & Switch' : 'Proceed to Order'}</span>
+                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Simple Order Header */}
+                        <div className="px-3 py-2 bg-gray-900 dark:bg-gray-950 border-b border-gray-700 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-white font-bold text-sm">Current Order</span>
+                                {heldOrders.length > 0 && (
+                                    <button
+                                        onClick={() => setHeldOrdersModalOpen(true)}
+                                        className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-[10px] font-black uppercase hover:bg-yellow-500/30 transition-colors"
+                                    >
+                                        <PauseCircle className="w-3 h-3" />
+                                        <span>{heldOrders.length} On Hold</span>
+                                    </button>
+                                )}
+                            </div>
+                            {/* Order Type Badge */}
+                            <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-black uppercase">
+                                {orderType}
                             </span>
-                            <span>₹{taxAmount.toFixed(2)}</span>
                         </div>
-                        {Math.abs(roundOffValue) > 0.001 && (
-                            <div className="flex justify-between text-gray-400 dark:text-gray-500 text-xs">
-                                <span>Round Off</span>
-                                <span>{roundOffValue > 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
+
+                        {/* Cart Items - Takes most space */}
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-900/50">
+                            {cart.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                    <ShoppingBag className="w-10 h-10 mb-2 opacity-20" />
+                                    <p className="text-sm">Cart is empty</p>
+                                    <p className="text-xs">Select items to start ordering</p>
+                                </div>
+                            ) : (
+                                cart.map((item, idx) => (
+                                    <CartItem
+                                        key={item.signature}
+                                        item={{
+                                            id: item.signature,
+                                            itemId: item.id, // Original item ID for editing
+                                            itemName: item.name,
+                                            price: item.displayPrice / item.qty,
+                                            quantity: item.qty,
+                                            total: item.price * item.qty,
+                                            variantName: item.variant?.name,
+                                            addons: item.selectedAddons,
+                                            cookingInstructions: item.specialNote
+                                        }}
+                                        onUpdateQuantity={(id, delta) => updateQty(id, delta)}
+                                        onRemove={(id) => removeItem(id)}
+                                        onEdit={(itemData) => editCartItem(itemData)}
+                                    />
+                                ))
+                            )}
+                        </div>
+
+                        {/* Summary Footer (Matching Design Image 1) */}
+                        <div className="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
+                            <div className="p-4 space-y-2">
+                                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                                    <span>Total number of items</span>
+                                    <span>{cart.reduce((s, i) => s + i.qty, 0).toString().padStart(2, '0')}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                                    <span>Bill Amount</span>
+                                    <span>₹{billTotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-1">
+                                    <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight italic">Bill Amount (rounded)</span>
+                                    <span className="text-lg font-black text-gray-900 dark:text-white">₹{finalTotal.toFixed(2)}</span>
+                                </div>
                             </div>
-                        )}
-                        <div className="flex justify-between font-bold text-lg text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <span>Total</span>
-                            <span>₹{finalTotal.toFixed(2)}</span>
+
+                            {/* Triple Action Buttons (Designed from Image 1) */}
+                            <div className="flex h-16 w-full overflow-hidden">
+                                <button
+                                    onClick={() => setShowDiscountModal(true)}
+                                    className="flex-1 bg-gray-900 dark:bg-black text-white flex flex-col items-center justify-center hover:bg-black transition-colors"
+                                >
+                                    <Tag className="w-5 h-5 mb-1 text-white" />
+                                    <span className="text-[10px] font-black uppercase tracking-tight">Discount</span>
+                                </button>
+
+                                <button
+                                    onClick={handleHoldOrder}
+                                    className="flex-1 bg-yellow-500 dark:bg-yellow-600 text-white flex flex-col items-center justify-center hover:bg-yellow-600 transition-colors"
+                                >
+                                    <PauseCircle className="w-5 h-5 mb-1 text-white" />
+                                    <span className="text-[10px] font-black uppercase tracking-tight">Hold</span>
+                                </button>
+
+                                <button
+                                    onClick={handleCheckout}
+                                    className="flex-[1.5] bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95 group"
+                                >
+                                    <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                    <span className="text-sm font-black uppercase tracking-widest">Checkout</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            onClick={handleKOT}
-                            className="py-3 rounded-xl font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Printer className="w-4 h-4" /> KOT
-                        </button>
-                        <button
-                            onClick={handleCheckout}
-                            className="py-3 rounded-xl font-bold bg-orange-600 text-white shadow-lg shadow-orange-600/30 hover:bg-orange-700 hover:shadow-orange-600/50 transition-all transform active:scale-95"
-                        >
-                            Checkout
-                        </button>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );
 }
+
+const handleSaveOrder = () => {
+    alert('Order saved successfully!');
+};
+
+export default Billing;

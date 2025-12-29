@@ -42,22 +42,28 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
         setIsInternalSyncing(true);
         try {
             console.log('--- Manual Sync Triggered ---');
-            // 1. Sync User & Menu Data
+
+            // 1. Sync Menu, Users & Settings from Server to Local DB
             await syncData();
 
-            // 2. Sync Pending Orders
+            // 2. Sync Pending Orders to Server
             const result = await orderService.processQueue();
 
-            if (result.count > 0 || result.failed > 0) {
-                alert(`Sync Complete!\n- Data updated\n- Orders synced: ${result.count}\n- Failed: ${result.failed}`);
-            } else {
-                console.log('Sync Complete: Data refreshed, no pending orders.');
+            let message = '✅ Sync Complete!\n\n';
+            message += '• Menu & Settings updated from server\n';
+            message += `• Orders synced: ${result.count}\n`;
+            if (result.failed > 0) {
+                message += `• Failed to sync: ${result.failed} orders`;
             }
 
-            setPendingOrders(orderService.getQueueLength());
+            alert(message);
+
+            // Reload to ensure fresh data from local DB is displayed
+            window.location.reload();
+
         } catch (error) {
             console.error('Manual sync failed:', error);
-            alert('Sync failed. Please check your internet connection.');
+            alert('❌ Sync failed!\n\nPlease check your internet connection and try again.');
         } finally {
             setIsInternalSyncing(false);
         }

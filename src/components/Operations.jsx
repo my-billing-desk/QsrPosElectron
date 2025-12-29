@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     FileText, Monitor, ChefHat, Users,
     TrendingUp, Wallet, ArrowDownCircle, PlusCircle,
@@ -6,11 +6,24 @@ import {
     HelpCircle, Radio, CreditCard, Languages,
     User, MessageSquare, Truck, Tv, AppWindow,
     Printer, Percent, Settings, ToggleRight, RotateCcw,
-    GitCommit, ScrollText, List, Sliders
+    GitCommit, ScrollText, List, Sliders, ArrowUpCircle
 } from 'lucide-react';
+import { CashMovementModal } from './CashMovementModal';
 
 export function Operations({ onNavigate }) {
+    const [cashMovementModal, setCashMovementModal] = useState({ isOpen: false, type: null });
+
+    const handleCashMovementSuccess = (movement) => {
+        console.log('Cash movement recorded:', movement);
+        // Could show a toast notification here
+    };
+
     const modules = [
+        // Cash Management - Now integrated into grid
+        { id: 'cash_in', title: 'Cash In', icon: ArrowDownCircle, color: 'text-green-500', action: () => setCashMovementModal({ isOpen: true, type: 'cash_in' }) },
+        { id: 'cash_out', title: 'Cash Out', icon: ArrowUpCircle, color: 'text-red-500', action: () => setCashMovementModal({ isOpen: true, type: 'cash_out' }) },
+
+        // Regular operations
         { id: 'orders', title: 'Orders', icon: FileText, color: 'text-gray-700' },
         { id: 'online_orders', title: 'Online Orders', icon: Monitor, color: 'text-gray-700' },
         { id: 'kots', title: 'KOTs', icon: ChefHat, color: 'text-gray-700' },
@@ -73,11 +86,11 @@ export function Operations({ onNavigate }) {
                 </div>
 
                 {/* Main Operations Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-10">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
                     {modules.map((module) => (
                         <button
                             key={module.id}
-                            onClick={() => onNavigate && onNavigate(module.id)}
+                            onClick={() => module.action ? module.action() : (onNavigate && onNavigate(module.id))}
                             className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 group h-32"
                         >
                             <module.icon
@@ -97,7 +110,7 @@ export function Operations({ onNavigate }) {
                     <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
                         Set the configuration for your restaurant
                     </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         {configModules.map((module) => {
                             const isHighlighted = module.isHightlighted;
                             return (
@@ -120,6 +133,14 @@ export function Operations({ onNavigate }) {
                     </div>
                 </div>
             </div>
+
+            {/* Cash Movement Modal */}
+            <CashMovementModal
+                isOpen={cashMovementModal.isOpen}
+                type={cashMovementModal.type}
+                onClose={() => setCashMovementModal({ isOpen: false, type: null })}
+                onSuccess={handleCashMovementSuccess}
+            />
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { authService, menuService } from '../services/api';
+import { authService, menuService, settingsService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export function useSync() {
@@ -11,47 +11,49 @@ export function useSync() {
         if (!user || isSyncing) return;
 
         setIsSyncing(true);
-        console.log('--- Starting Background Sync ---');
+        console.log('--- Starting Data Sync from Server ---');
 
         try {
-            // 1. Sync Users
+            // 1. Sync Users (for offline login)
             const usersRes = await authService.syncUsers();
             if (window.electronAPI) {
                 await window.electronAPI.syncUsers(usersRes.data);
             }
+            console.log('[SYNC] Users synced:', usersRes.data?.length || 0);
 
-            // 2. Sync Menu
-            const catsRes = await menuService.getCategories();
-            const itemsRes = await menuService.getItems();
+            // 2. Sync Menu (pulls from API and saves to local DB)
+            const menuResult = await menuService.syncFromServer();
+            console.log('[SYNC] Menu synced:', menuResult.categories.length, 'cats,', menuResult.items.length, 'items');
 
-            if (window.electronAPI) {
-                await window.electronAPI.syncMenu({
-                    categories: catsRes.data,
-                    items: itemsRes.data,
-                    tenantId: user.tenantId
-                });
-            }
+            // 3. Sync Settings
+            await settingsService.syncFromServer();
+            console.log('[SYNC] Settings synced');
 
             const now = new Date().toISOString();
             localStorage.setItem('pos_last_sync', now);
             setLastSync(now);
             console.log('--- Sync Completed Successfully ---');
+
+            return { success: true };
         } catch (error) {
             console.error('Sync failed:', error);
+            throw error; // Re-throw so caller can handle
         } finally {
             setIsSyncing(false);
         }
     };
 
-    // Auto sync on login or every 15 minutes
+    // NOTE: Auto-sync disabled for local-first approach
+    // Data is only synced when user explicitly clicks Sync button
+    // Uncomment below to enable periodic sync
+    /*
     useEffect(() => {
         if (user) {
-            syncData(); // Initial sync on load/login
-
             const interval = setInterval(syncData, 15 * 60 * 1000); // 15 mins
             return () => clearInterval(interval);
         }
     }, [user?.id]);
+    */
 
     return { isSyncing, lastSync, syncData };
 }

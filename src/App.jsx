@@ -10,16 +10,19 @@ import { Settings } from './components/Settings';
 import { Operations } from './components/Operations';
 import { RunningOrders } from './components/RunningOrders';
 import { OnlineOrders } from './components/OnlineOrders';
-import { useOnlineOrders } from './hooks/useOnlineOrders';
+// import { useOnlineOrders } from './hooks/useOnlineOrders'; // Disabled auto-polling
 import { useSync } from './hooks/useSync';
+import { usePOSDeviceRegistration } from './hooks/usePOSDeviceRegistration';
 import { Login } from './components/Login';
 import { TenantMapping } from './components/TenantMapping';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function AppContent() {
     const { user, logout } = useAuth();
-    useOnlineOrders();
+    // useOnlineOrders(); // Disabled auto-polling of online orders
     useSync();
+    usePOSDeviceRegistration(); // Register this POS device
     const [mappedTenantId, setMappedTenantId] = useState(localStorage.getItem('pos_tenant_id'));
     const [isTouchMode, setIsTouchMode] = useState(localStorage.getItem('pos_touch_mode') === 'true');
     const [activeTab, setActiveTab] = useState('billing');
@@ -126,7 +129,9 @@ function AppContent() {
 function App() {
     return (
         <AuthProvider>
-            <AppContent />
+            <ThemeProvider>
+                <AppContent />
+            </ThemeProvider>
         </AuthProvider>
     );
 }

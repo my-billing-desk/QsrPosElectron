@@ -150,16 +150,24 @@ ipcMain.handle('db-get-menu', async (event, tenantId) => {
     return db.getLocalMenu(tenantId);
 });
 
-ipcMain.handle('db-save-order', async (event, order) => {
-    return db.saveOrder(order);
+ipcMain.handle('db-save-order', async (event, order, status) => {
+    return db.saveOrder(order, status);
 });
 
 ipcMain.handle('db-get-queued-orders', async (event) => {
     return db.getQueuedOrders();
 });
 
+ipcMain.handle('db-delete-order', async (event, id) => {
+    return db.deleteLocalOrder(id);
+});
+
 ipcMain.handle('db-mark-synced', async (event, id) => {
     return db.markOrderSynced(id);
+});
+
+ipcMain.handle('db-get-all-orders', async (event) => {
+    return db.getAllLocalOrders();
 });
 
 app.on('window-all-closed', function () {
