@@ -201,7 +201,8 @@ const getAllLocalOrders = () => {
     const rows = db.prepare(`SELECT * FROM orders_offline ORDER BY created_at DESC LIMIT 50`).all();
     return rows.map(r => {
         const order = JSON.parse(r.data);
-        return { ...order, status: r.status === 'queued' ? 'queued' : order.status }; // Preserve local status
+        // Use the status column from the DB as the source of truth
+        return { ...order, status: r.status };
     });
 };
 

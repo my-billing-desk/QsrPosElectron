@@ -35,6 +35,10 @@ export function Login({ isTouchMode }) {
 
             const { data } = await authService.login(loginPayload);
             localStorage.setItem('pos_token', data.token);
+            if (data.daysLeft !== undefined) {
+                data.user.daysLeft = data.daysLeft;
+                data.user.trialDaysLeft = data.daysLeft; // Fallback
+            }
             login(data.user);
         } catch (err) {
             console.error("Login failed", err);

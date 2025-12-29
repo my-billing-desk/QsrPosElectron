@@ -19,6 +19,7 @@ import { Login } from './components/Login';
 import { TenantMapping } from './components/TenantMapping';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { HoldOrdersSlider } from './components/HoldOrdersSlider';
 
 // Loading Component
 const LoadingFallback = () => (
@@ -40,7 +41,11 @@ function AppContent() {
     const [billingKey, setBillingKey] = useState(0);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
-    // Auto-collapse logic based on active tab
+
+
+    // HoldSlider State
+    const [isHoldSliderOpen, setIsHoldSliderOpen] = useState(false);
+    const [restoredOrder, setRestoredOrder] = useState(null);
     React.useEffect(() => {
         if (activeTab === 'billing') {
             setIsSidebarCollapsed(true);
@@ -56,6 +61,16 @@ function AppContent() {
 
     const toggleSidebar = () => {
         setIsSidebarCollapsed(prev => !prev);
+    };
+
+    const handleRestoreOrder = (order) => {
+        setRestoredOrder(order);
+        setIsHoldSliderOpen(false);
+        setActiveTab('billing');
+        // Force refresh billing if already active
+        if (activeTab === 'billing') {
+            setBillingKey(prev => prev + 1);
+        }
     };
 
     const handleTableSelect = (table) => {
@@ -99,6 +114,7 @@ function AppContent() {
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Global Header */}
                 <Header
+                    user={user}
                     onToggleSidebar={toggleSidebar}
                     onNavigate={handleTabChange}
                     onLogout={() => {
@@ -112,7 +128,7 @@ function AppContent() {
                     <Suspense fallback={<LoadingFallback />}>
                         {activeTab === 'operations' && <Operations onNavigate={handleTabChange} />}
                         {activeTab === 'dashboard' && <Dashboard />}
-                        {activeTab === 'billing' && <Billing resetSignal={billingKey} />}
+                        {activeTab === 'billing' && <Billing resetSignal={billingKey} restoredOrder={restoredOrder} onOrderRestored={() => setRestoredOrder(null)} />}
                         {activeTab === 'kitchen_view' && <KotManagement />}
                         {activeTab === 'online_orders' && <OnlineOrders />}
                         {activeTab === 'running_orders' && <RunningOrders />}
@@ -134,6 +150,12 @@ function AppContent() {
                     )}
                 </main>
             </div>
+
+            <HoldOrdersSlider
+                isOpen={isHoldSliderOpen}
+                onClose={() => setIsHoldSliderOpen(false)}
+                onRestore={handleRestoreOrder}
+            />
         </div>
     );
 }

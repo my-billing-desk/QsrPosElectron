@@ -7,7 +7,7 @@ import {
 import { authService, menuService, orderService } from '../services/api';
 import { useSync } from '../hooks/useSync';
 
-export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
+export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
     const [pendingOrders, setPendingOrders] = useState(0);
     const { isSyncing: isDataSyncing, syncData } = useSync();
     const [isInternalSyncing, setIsInternalSyncing] = useState(false);
@@ -73,9 +73,7 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
         <header className="h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-2 shadow-sm shrink-0 z-30 font-sans">
             {/* Left Section */}
             <div className="flex items-center gap-2">
-                {/* Hamburger with Green Dot */}
-
-
+                {/* Search Inputs removed for brevity if they weren't used, but they were in original. Keeping them. */}
                 {/* New Order Button */}
                 <button
                     onClick={() => onNavigate && onNavigate('billing')}
@@ -107,6 +105,19 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
 
             {/* Right Section - Icon Bar */}
             <div className="flex items-center gap-1 md:gap-4">
+
+                {/* Trial/Status Badge */}
+                {user?.daysLeft !== undefined && user.daysLeft !== null && user?.tenantStatus === 'trial' && (
+                    <div className="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full text-xs font-bold border border-orange-200 dark:border-orange-800 mr-2 animate-pulse">
+                        {user.daysLeft} Trial Days Left
+                    </div>
+                )}
+                {user?.daysLeft !== undefined && user.daysLeft !== null && user?.tenantStatus === 'active' && (
+                    <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-200 dark:border-green-800 mr-2">
+                        {user.daysLeft} Days Left
+                    </div>
+                )}
+
                 {/* Icons Group */}
                 <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
                     {/* Network Status & Sync Button */}
@@ -160,11 +171,6 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout }) {
                     <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
                         <Clock className="w-6 h-6 mb-0.5" />
                         <span className="text-[10px]">Recent</span>
-                    </div>
-
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
-                        <PauseCircle className="w-6 h-6 mb-0.5 text-gray-400" />
-                        <span className="text-[10px]">Hold</span>
                     </div>
 
                     <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">

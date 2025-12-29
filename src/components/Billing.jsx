@@ -7,6 +7,7 @@ import { UpsellReminderBanner, DEFAULT_UPSELL_REMINDER } from './UpsellReminderB
 import { DiscountModal } from './DiscountModal';
 import { CartItem } from './CartItem';
 import { CustomerDetailsSection } from './CustomerDetailsSection';
+import { PaymentModal } from './PaymentModal';
 
 
 
@@ -175,11 +176,25 @@ const generateBillHtml = (order, settings) => {
                     <span>₹ ${formatCurrency(Math.round(order.totalAmount))}</span>
                 </div>
                 
-                <!-- 
-                <div class="total-row" style="font-size: 11px;">
-                    <span>Paid via: Cash/UPI</span>
+                <div class="divider-dashed"></div>
+                <div style="margin-top: 5px; margin-bottom: 5px;">
+                    ${order.paymentType === 'split' && order.splits && order.splits.length > 0 ?
+            `
+                        <div class="bold" style="font-size: 10px; margin-bottom: 2px;">Payment Details (Split):</div>
+                        ${order.splits.map(s => `
+                            <div class="total-row" style="font-size: 10px;">
+                                <span>${s.method}</span>
+                                <span>${formatCurrency(s.amount)}</span>
+                            </div>
+                        `).join('')}
+                        `
+            :
+            `<div class="total-row" style="font-size: 10px;">
+                            <span>Paid via ${order.paymentMethod || 'Cash'}</span>
+                            <span>${formatCurrency(order.amountReceived || order.totalAmount)}</span>
+                        </div>`
+        }
                 </div>
-                -->
             </div>
 
             <div class="footer">
@@ -275,7 +290,7 @@ const generateKotHtml = (order) => {
     `;
 };
 
-export function Billing({ resetSignal }) {
+export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
     const [cart, setCart] = useState([]);
     const [orderType, setOrderType] = useState('dine-in');
     const [activeCategory, setActiveCategory] = useState('All');
@@ -300,6 +315,27 @@ export function Billing({ resetSignal }) {
     const [heldOrdersModalOpen, setHeldOrdersModalOpen] = useState(false);
     const [heldOrders, setHeldOrders] = useState([]);
 
+    // Restore Order Effect
+    useEffect(() => {
+        if (restoredOrder) {
+            setCart(restoredOrder.items || []);
+            setOrderType(restoredOrder.type || 'dine-in');
+            setCustomerName(restoredOrder.customerName || '');
+            setCustomerPhone(restoredOrder.customerPhone || '');
+            setCurrentCustomer(restoredOrder.customer || null);
+            setWorkflowStep(restoredOrder.items?.length > 0 ? 'cart' : 'customer');
+
+            // Optional: delete from held orders immediately to prevent duplication?
+            // For now, let's just restoring it to cart.
+            // If we want to remove it from "Hold" list, we should do it here or in app.
+            if (window.electronAPI && window.electronAPI.deleteOrder) {
+                window.electronAPI.deleteOrder(restoredOrder.id).catch(console.error);
+            }
+
+            if (onOrderRestored) onOrderRestored();
+        }
+    }, [restoredOrder]);
+
     // Special Note State
     const [noteModalOpen, setNoteModalOpen] = useState(false);
     const [noteTargetIndex, setNoteTargetIndex] = useState(null);
@@ -319,6 +355,9 @@ export function Billing({ resetSignal }) {
 
     // Upsell Reminders
     const [upsellReminders, setUpsellReminders] = useState([DEFAULT_UPSELL_REMINDER]);
+
+    // Payment Modal State
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
 
     const showNotification = (message, type = 'success') => {
@@ -930,8 +969,15 @@ export function Billing({ resetSignal }) {
         }
     };
 
-    const handleCheckout = async () => {
+    const initiateCheckout = () => {
         if (cart.length === 0) return;
+        setShowPaymentModal(true);
+    };
+
+    const processOrder = async (paymentDetails) => {
+        if (cart.length === 0) return;
+        setShowPaymentModal(false); // Close modal immediately
+
         try {
             const orderData = {
                 items: cart.map(i => ({
@@ -950,7 +996,14 @@ export function Billing({ resetSignal }) {
                 subTotal: subtotal, // Add subtotal
                 containerCharge: containerCharge, // Add container charge
                 type: orderType,
-                orderNumber: `ORD-${Date.now()}`
+                orderNumber: `ORD-${Date.now()}`,
+
+                // Payment Info
+                paymentMethod: paymentDetails?.method || 'Cash',
+                paymentStatus: 'paid', // Assuming immediate payment success in this flow
+                amountReceived: paymentDetails?.receivedAmount || finalTotal,
+                paymentType: paymentDetails?.paymentType || 'full',
+                splits: paymentDetails?.splits || []
             };
 
             const response = await orderService.createOrder(orderData);
@@ -1503,7 +1556,7 @@ export function Billing({ resetSignal }) {
                                 </button>
 
                                 <button
-                                    onClick={handleCheckout}
+                                    onClick={initiateCheckout}
                                     className="flex-[1.5] bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95 group"
                                 >
                                     <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -1514,6 +1567,18 @@ export function Billing({ resetSignal }) {
                     </div>
                 )}
             </div>
+
+            <PaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={processOrder}
+                totalAmount={finalTotal}
+                subTotal={subtotal}
+                taxAmount={taxAmount}
+                discount={discount}
+                roundOff={roundOffValue}
+                orderType={orderType}
+            />
         </div>
     );
 }
