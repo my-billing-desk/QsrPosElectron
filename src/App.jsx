@@ -11,6 +11,18 @@ const Settings = React.lazy(() => import('./components/Settings').then(module =>
 const Operations = React.lazy(() => import('./components/Operations').then(module => ({ default: module.Operations })));
 const RunningOrders = React.lazy(() => import('./components/RunningOrders').then(module => ({ default: module.RunningOrders })));
 const OnlineOrders = React.lazy(() => import('./components/OnlineOrders').then(module => ({ default: module.OnlineOrders })));
+const Inventory = React.lazy(() => import('./components/Inventory'));
+// Lazy load inventory sub-modules
+const PosInventory = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: () => null }))); // Dummy for preloading? No, let's just use direct imports inside the render or lazy load the container.
+// Actually, since they are named exports, we can do:
+const StockPurchase = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockPurchase })));
+const PurchaseOrder = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.PurchaseOrder })));
+const AvailableStock = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.AvailableStock })));
+const ClosingStock = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.ClosingStock })));
+const StockTransfer = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockTransfer })));
+const Wastage = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.Wastage })));
+const InventoryReports = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.InventoryReports })));
+const StockSummary = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockSummary })));
 
 // import { useOnlineOrders } from './hooks/useOnlineOrders'; // Disabled auto-polling
 import { useSync } from './hooks/useSync';
@@ -134,20 +146,31 @@ function AppContent() {
                         {activeTab === 'running_orders' && <RunningOrders />}
                         {activeTab === 'order_history' && <OrderHistory />}
                         {activeTab === 'print_config' && <Settings />}
+                        {activeTab === 'inventory' && <Inventory />}
+                        {activeTab === 'stock_purchase' && <StockPurchase />}
+                        {activeTab === 'purchase_order' && <PurchaseOrder />}
+                        {activeTab === 'available_stock' && <AvailableStock />}
+                        {activeTab === 'closing_stock' && <ClosingStock />}
+                        {activeTab === 'stock_transfer' && <StockTransfer />}
+                        {activeTab === 'wastage' && <Wastage />}
+                        {activeTab === 'inventory_reports' && <InventoryReports />}
+                        {activeTab === 'stock_summary' && <StockSummary />}
                     </Suspense>
 
                     {/* Placeholder for future POS modules */}
-                    {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'online_orders', 'order_history', 'print_config'].includes(activeTab) && (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-4xl">
-                                🚧
+                    {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'online_orders', 'order_history', 'print_config', 'inventory',
+                        'stock_purchase', 'purchase_order', 'available_stock', 'closing_stock', 'stock_transfer', 'wastage', 'inventory_reports', 'stock_summary'
+                    ].includes(activeTab) && (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-4xl">
+                                    🚧
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-300 mb-2">
+                                    {activeTab.replace(/_/g, ' ').toUpperCase()}
+                                </h2>
+                                <p>Module Under Development</p>
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-300 mb-2">
-                                {activeTab.replace(/_/g, ' ').toUpperCase()}
-                            </h2>
-                            <p>Module Under Development</p>
-                        </div>
-                    )}
+                        )}
                 </main>
             </div>
 

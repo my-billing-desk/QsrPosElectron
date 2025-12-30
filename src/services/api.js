@@ -344,4 +344,8 @@ export const authService = {
     }
 };
 
+export const inventoryService = {
+    getStats: () => api.get('/inventory/stats'),
+};
+
 export default api;

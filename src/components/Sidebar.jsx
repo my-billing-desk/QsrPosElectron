@@ -1,6 +1,7 @@
 import React from 'react';
 import {
-    LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag
+    LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag,
+    ShoppingCart, BarChart2, PieChart, ArrowRightLeft, Trash2, Package, ClipboardCheck
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -19,6 +20,41 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
                 { id: 'running_summary', label: 'Order Summary', icon: FolderOpen },
                 { id: 'kitchen_view', label: 'Kitchen View (KDS)', icon: ChefHat },
                 { id: 'day_shift', label: 'Day Shift', icon: Clock },
+            ]
+        },
+        {
+            title: 'Purchase',
+            items: [
+                { id: 'stock_purchase', label: 'Stock Purchase', icon: ShoppingCart },
+                { id: 'purchase_order', label: 'Purchase Order', icon: FileText },
+            ]
+        },
+        {
+            title: 'Manage Stock',
+            items: [
+                { id: 'inventory', label: 'Overview', icon: FolderOpen },
+                { id: 'available_stock', label: 'Available Stock', icon: Package },
+                { id: 'closing_stock', label: 'Closing Stock', icon: ClipboardCheck },
+            ]
+        },
+        {
+            title: 'Consumption',
+            items: [
+                { id: 'stock_transfer', label: 'Transfer', icon: ArrowRightLeft },
+                { id: 'wastage', label: 'Wastage', icon: Trash2 },
+            ]
+        },
+        // {
+        //     title: 'Production',
+        //     items: [
+        //         { id: 'production', label: 'Production', icon: Factory },
+        //     ]
+        // },
+        {
+            title: 'Reports',
+            items: [
+                { id: 'inventory_reports', label: 'Inventory Reports', icon: BarChart2 },
+                { id: 'stock_summary', label: 'Stock Summary', icon: PieChart },
             ]
         }
     ];
