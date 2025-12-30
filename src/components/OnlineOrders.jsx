@@ -44,6 +44,7 @@ export function OnlineOrders() {
         // Simple text fallback or specific icons if available
         if (source === 'Zomato') return <span className="text-red-600 font-extrabold text-lg">Z</span>;
         if (source === 'Swiggy') return <span className="text-orange-500 font-extrabold text-lg">S</span>;
+        if (source === 'ONDC') return <span className="text-blue-800 font-extrabold text-lg">ONDC</span>;
         return <span className="text-blue-500 font-bold text-lg">O</span>;
     };
 
@@ -55,25 +56,60 @@ export function OnlineOrders() {
                         <ShoppingBag className="w-8 h-8 text-blue-600" />
                         Online Orders
                     </h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Manage orders from Zomato, Swiggy, and others</p>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Manage orders from Zomato, Swiggy, ONDC, and others</p>
                 </div>
                 <div className="flex gap-2">
                     <button
                         onClick={async () => {
                             try {
-                                const sources = ['Swiggy', 'Zomato'];
+                                const sources = ['Swiggy', 'Zomato', 'ONDC'];
                                 const source = sources[Math.floor(Math.random() * sources.length)];
-                                await fetch(`http://localhost:5001/api/aggregators/webhook`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        source: source,
-                                        customer: { name: 'Test Customer ' + Math.floor(Math.random() * 100) },
-                                        totalAmount: 450,
-                                        items: [],
-                                        tenantId: user?.tenantId // Critical for multi-tenancy testing
-                                    })
-                                });
+
+                                if (source === 'ONDC') {
+                                    // Simulate ONDC Payload
+                                    await fetch(`http://localhost:5001/api/aggregators/ondc/confirm`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            context: {
+                                                domain: "nic2004:52110",
+                                                action: "confirm",
+                                                core_version: "1.1.0",
+                                                message_id: "MSG-" + Date.now(),
+                                                transaction_id: "TXN-" + Date.now()
+                                            },
+                                            message: {
+                                                order: {
+                                                    id: "ONDC-" + Math.floor(Math.random() * 10000),
+                                                    state: "Created",
+                                                    billing: {
+                                                        name: 'ONDC Customer ' + Math.floor(Math.random() * 100),
+                                                        phone: '9876543210'
+                                                    },
+                                                    quote: {
+                                                        price: { value: "650", currency: "INR" }
+                                                    },
+                                                    payment: { status: "PAID" },
+                                                    provider: { id: "sunburst_store_01" } // Matches nothing in seed usually, but controller handles fallback
+                                                }
+                                            }
+                                        })
+                                    });
+                                } else {
+                                    // Standard Webhook
+                                    await fetch(`http://localhost:5001/api/aggregators/webhook`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            source: source,
+                                            customer: { name: 'Test Customer ' + Math.floor(Math.random() * 100) },
+                                            totalAmount: 450,
+                                            items: [],
+                                            tenantId: user?.tenantId
+                                        })
+                                    });
+                                }
+
                                 toast.success(`Simulated ${source} order sent!`);
                                 fetchOrders();
                             } catch (e) {

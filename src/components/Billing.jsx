@@ -1368,7 +1368,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                         color: 'var(--item-text)'
                                     }}
                                 >
-                                    {item.showImage && (
+                                    {!!item.showImage && (
                                         <>
                                             {item.image ? (
                                                 <img
@@ -1540,7 +1540,8 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                             <div className="flex h-16 w-full overflow-hidden">
                                 <button
                                     onClick={() => setShowDiscountModal(true)}
-                                    className="flex-1 bg-gray-900 dark:bg-black text-white flex flex-col items-center justify-center hover:bg-black transition-colors"
+                                    className="flex-1 text-white flex flex-col items-center justify-center hover:opacity-90 transition-colors"
+                                    style={{ backgroundColor: 'var(--pos-btn-save)' }}
                                 >
                                     <Tag className="w-5 h-5 mb-1 text-white" />
                                     <span className="text-[10px] font-black uppercase tracking-tight">Discount</span>
@@ -1548,7 +1549,8 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
                                 <button
                                     onClick={handleHoldOrder}
-                                    className="flex-1 bg-yellow-500 dark:bg-yellow-600 text-white flex flex-col items-center justify-center hover:bg-yellow-600 transition-colors"
+                                    className="flex-1 text-white flex flex-col items-center justify-center hover:opacity-90 transition-colors"
+                                    style={{ backgroundColor: 'var(--pos-btn-hold)' }}
                                 >
                                     <PauseCircle className="w-5 h-5 mb-1 text-white" />
                                     <span className="text-[10px] font-black uppercase tracking-tight">Hold</span>
@@ -1557,7 +1559,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                 <button
                                     onClick={initiateCheckout}
                                     className="flex-[1.5] text-white flex items-center justify-center gap-3 hover:opacity-90 transition-all active:scale-95 group"
-                                    style={{ backgroundColor: 'var(--pos-checkout-btn)', color: 'var(--pos-checkout-btn-text)' }}
+                                    style={{ backgroundColor: 'var(--pos-btn-pay)', color: 'var(--pos-btn-text)' }}
                                 >
                                     <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <span className="text-sm font-black uppercase tracking-widest">Checkout</span>

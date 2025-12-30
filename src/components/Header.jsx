@@ -112,11 +112,6 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                         {user.daysLeft} Trial Days Left
                     </div>
                 )}
-                {user?.daysLeft !== undefined && user.daysLeft !== null && user?.tenantStatus === 'active' && (
-                    <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-200 dark:border-green-800 mr-2">
-                        {user.daysLeft} Days Left
-                    </div>
-                )}
 
                 {/* Icons Group */}
                 <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
@@ -178,11 +173,6 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                         <span className="text-[10px]">Alerts</span>
                     </div>
 
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
-                        <Headphones className="w-6 h-6 mb-0.5" />
-                        <span className="text-[10px]">Zomato Help</span>
-                    </div>
-
                     <div
                         className="flex flex-col items-center cursor-pointer hover:text-red-600 group text-red-500"
                         onClick={onLogout}
@@ -190,14 +180,6 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                         <LogOut className="w-6 h-6 mb-0.5" />
                         <span className="text-[10px]">Logout</span>
                     </div>
-                </div>
-
-                {/* Support Info */}
-                <div className="bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-l-md border-l-4 border-red-500 hidden xl:block">
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400 leading-none">07123456789</p>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 text-right flex items-center justify-end gap-1 cursor-pointer hover:underline">
-                        Request Support <span>&gt;</span>
-                    </p>
                 </div>
             </div>
         </header>

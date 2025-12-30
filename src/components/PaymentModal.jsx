@@ -167,8 +167,6 @@ export function PaymentModal({ isOpen, onClose, onConfirm, totalAmount, subTotal
                 <div className="flex bg-white dark:bg-gray-800 p-2 border-b border-gray-200 dark:border-gray-700 items-center justify-between shrink-0">
                     <div className="flex gap-4 ml-4">
                         <ModeRadio label="Full Payment" mode="full" current={paymentType} onSelect={handleModeRequest} />
-                        <ModeRadio label="Non chargeable" mode="non_chargeable" current={paymentType} onSelect={handleModeRequest} />
-                        <ModeRadio label="Partial Payment" mode="partial" current={paymentType} onSelect={handleModeRequest} />
                         <ModeRadio label="Split Payment" mode="split" current={paymentType} onSelect={handleModeRequest} />
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
@@ -245,34 +243,24 @@ export function PaymentModal({ isOpen, onClose, onConfirm, totalAmount, subTotal
                                     { id: 'Card', icon: <CreditCard size={20} /> },
                                     { id: 'UPI', icon: <Smartphone size={20} /> },
                                     { id: 'Cash', icon: <Banknote size={20} /> },
-                                    { id: 'Pine labs', icon: <Server size={20} />, preferred: true },
+                                    { id: 'Pine labs', icon: <Server size={20} /> },
                                     { id: 'Online', icon: <Wallet size={20} /> },
                                 ].map(method => (
                                     <button
                                         key={method.id}
                                         onClick={() => setSelectedMethod(method.id)}
                                         className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all active:scale-95 relative overflow-hidden ${selectedMethod === method.id
-                                                ? 'bg-gray-800 text-white border-gray-800 shadow-xl'
-                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                                            ? 'bg-gray-800 text-white border-gray-800 shadow-xl'
+                                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-300'
                                             }`}
                                     >
                                         {method.icon}
                                         <span className="font-bold text-sm">{method.id}</span>
-                                        {method.preferred && selectedMethod !== method.id && (
-                                            <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full m-2 animate-pulse"></div>
-                                        )}
+
                                     </button>
                                 ))}
                             </div>
-                            {selectedMethod === 'Pine labs' && (
-                                <div className="bg-green-600 text-white p-4 rounded-xl text-center shadow-lg">
-                                    Preferred payment options is <span className="font-black text-yellow-300">"Pine Labs"</span>.
-                                    <br />
-                                    <span className="text-xs opacity-90 mt-1 block">
-                                        In case pine labs integration is not working then use "Card" or "UPI"
-                                    </span>
-                                </div>
-                            )}
+
                         </div>
                     </div>
 
@@ -366,7 +354,7 @@ export function PaymentModal({ isOpen, onClose, onConfirm, totalAmount, subTotal
 
                 {/* Footer Actions */}
                 <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <button onClick={onClose} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 shadow-sm">
+                    <button onClick={onClose} className="px-8 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 shadow-sm" style={{ borderLeft: '4px solid var(--pos-btn-save)' }}>
                         Save
                     </button>
                     <button
@@ -377,7 +365,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, totalAmount, subTotal
                             splits: paymentType === 'split' ? splits : []
                         })}
                         disabled={paymentType === 'split' ? due > 0.5 : false}
-                        className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-8 py-3 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        style={{ backgroundColor: 'var(--pos-btn-pay)', boxShadow: '0 4px 14px 0 var(--pos-btn-pay)4D' }}
                     >
                         Confirm Payment
                     </button>

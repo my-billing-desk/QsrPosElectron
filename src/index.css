@@ -2,123 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* POS Theme Defaults */
-  --pos-bg: #f1f5f9;
-  --pos-header: #ffffff;
-  --pos-sidebar: #ffffff;
-  --pos-cat-btn: #ffffff;
-  --pos-cat-active: #10b981;
-  --pos-cat-active-text: #ffffff;
-  --pos-item-card: #ffffff;
-  --pos-checkout-btn: #10b981;
-  --pos-checkout-btn-text: #ffffff;
-  --pos-confirm-btn: #10b981;
-  --pos-confirm-btn-text: #ffffff;
-  --pos-cancel-btn: #ef4444;
-  --pos-cancel-btn-text: #ffffff;
-  --pos-numpad-btn: #ffffff;
-  --pos-numpad-text: #1e293b;
-}
-
 @layer base {
+  :root {
+    /* ===== POS COLOR SYSTEM ===== */
+    /* All colors start as NEUTRAL - You will guide me to change each one */
+
+    /* === GLOBAL THEME VARIABLES === */
+    --bg-main: #F8FAFC;
+    --bg-surface: #FFFFFF;
+    --bg-sidebar: #0F172A;
+    --bg-header: #FFFFFF;
+
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+
+    --color-primary: #10B981;
+    --color-primary-hover: #059669;
+    --color-secondary: #64748B;
+
+    --status-success: #22C55E;
+    --status-warning: #F59E0B;
+    --status-error: #EF4444;
+    --status-info: #3B82F6;
+
+    --border-color: #E2E8F0;
+
+    /* POS Button Variations */
+    --pos-btn-pay: var(--color-primary);
+    --pos-btn-hold: var(--status-warning);
+    --pos-btn-save: var(--color-secondary);
+    --pos-btn-cancel: var(--status-error);
+    --pos-btn-text: #FFFFFF;
+
+    /* Typography */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
   body {
-    background-color: var(--pos-bg);
     @apply antialiased;
+    font-family: var(--font-family);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
   }
 }
 
+/* Override Tailwind colors */
 @layer utilities {
-
-  /* Dynamic theme color utilities */
-  .bg-primary {
-    background-color: var(--color-primary);
+  .bg-white {
+    background-color: var(--bg-surface) !important;
   }
 
-  .bg-primary-50 {
-    background-color: var(--color-primary-50);
+  .bg-gray-50 {
+    background-color: var(--bg-main) !important;
   }
 
-  .bg-primary-100 {
-    background-color: var(--color-primary-100);
+  .bg-gray-100 {
+    background-color: var(--bg-main) !important;
   }
 
-  .bg-primary-200 {
-    background-color: var(--color-primary-200);
+  /* Status Colors */
+  .bg-green-600 {
+    background-color: var(--status-success) !important;
   }
 
-  .bg-primary-600 {
-    background-color: var(--color-primary-600);
+  .text-green-600 {
+    color: var(--status-success) !important;
   }
 
-  .bg-primary-700 {
-    background-color: var(--color-primary-700);
+  .bg-red-600 {
+    background-color: var(--status-error) !important;
   }
 
-  .text-primary {
-    color: var(--color-primary);
+  .text-red-600 {
+    color: var(--status-error) !important;
   }
 
-  .text-primary-600 {
-    color: var(--color-primary-600);
+  /* Action Colors */
+  .bg-orange-500,
+  .bg-emerald-600 {
+    background-color: var(--color-primary) !important;
   }
 
-  .text-primary-700 {
-    color: var(--color-primary-700);
+  /* Text Colors */
+  .text-gray-600 {
+    color: var(--text-muted) !important;
   }
 
-  .border-primary {
-    border-color: var(--color-primary);
+  .text-gray-700,
+  .text-gray-900 {
+    color: var(--text-main) !important;
   }
+}
 
-  .border-primary-200 {
-    border-color: var(--color-primary-200);
-  }
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-  .ring-primary {
-    --tw-ring-color: var(--color-primary);
-  }
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
 
-  .hover\:bg-primary-600:hover {
-    background-color: var(--color-primary-600);
-  }
-
-  .hover\:bg-primary-700:hover {
-    background-color: var(--color-primary-700);
-  }
-
-  .focus\:ring-primary:focus {
-    --tw-ring-color: var(--color-primary);
-  }
-
-  /* Animations */
-  .animate-slide-in-right {
-    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  @keyframes slideInRight {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.2s ease-out forwards;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
-  }
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
 }

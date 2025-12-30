@@ -29,7 +29,7 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             <div onClick={toggleSidebar} className={`h-16 shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all cursor-pointer`}>
                 <div
                     className={`${isCollapsed ? 'w-10 h-10' : 'w-auto px-3 py-2'} rounded-lg flex items-center justify-center text-white font-bold transition-all`}
-                    style={{ backgroundColor: themeColor }}
+                    style={{ backgroundColor: 'var(--color-primary)' }}
                 >
                     {isCollapsed ? 'Q' : 'QSR POS'}
                 </div>
