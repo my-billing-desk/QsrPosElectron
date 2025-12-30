@@ -95,12 +95,7 @@ export function TenantMapping({ onMap }) {
                     </div>
                 )}
 
-                <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl mb-6">
-                    <p className="text-xs text-blue-400 leading-relaxed">
-                        Copy the <span className="font-bold text-blue-300">Restaurant ID</span> from your Web Admin
-                        <span className="font-bold block mt-1 underline">Settings &gt; Outlet Information</span>
-                    </p>
-                </div>
+
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
