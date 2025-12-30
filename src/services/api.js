@@ -345,7 +345,38 @@ export const authService = {
 };
 
 export const inventoryService = {
+    getRawMaterials: () => api.get('/inventory/materials'),
+    createRawMaterial: (data) => api.post('/inventory/materials', data),
+    updateRawMaterial: (id, data) => api.put(`/inventory/materials/${id}`, data),
+    deleteRawMaterial: (id) => api.delete(`/inventory/materials/${id}`),
+
+    getRecipes: () => api.get('/inventory/recipes'),
+    getRecipe: (params) => api.get('/inventory/recipe', { params }), // { itemId, variantId }
+    saveRecipe: (data) => api.post('/inventory/recipes', data),
+
+    // Procurement
+    getSuppliers: () => api.get('/inventory/suppliers'),
+    createSupplier: (data) => api.post('/inventory/suppliers', data),
+
+    getPurchases: () => api.get('/inventory/purchases'),
+    createPurchase: (data) => api.post('/inventory/purchases', data),
+
+    getPurchaseOrders: () => api.get('/inventory/orders'),
+    createPurchaseOrder: (data) => api.post('/inventory/orders', data),
+
+    getPurchaseReturns: () => api.get('/inventory/returns'),
+    createPurchaseReturn: (data) => api.post('/inventory/returns', data),
+
+    // Wastage
+    getWastages: () => api.get('/inventory/wastage'),
+    createWastage: (data) => api.post('/inventory/wastage', data),
+
     getStats: () => api.get('/inventory/stats'),
+    updateClosingStock: (data) => api.post('/inventory/closing-stock', data),
+    getClosingStockReport: () => api.get('/inventory/reports/closing-stock'),
+    getStockSummaryReport: (params) => api.get('/inventory/reports/stock-summary', { params }), // New
+    getOrderWiseConsumptionReport: (params) => api.get('/inventory/reports/order-consumption', { params }), // New
+    getConsumptionSummaryReport: (params) => api.get('/inventory/reports/consumption-summary', { params }), // New
 };
 
 export default api;
