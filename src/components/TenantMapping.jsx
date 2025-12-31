@@ -42,7 +42,11 @@ export function TenantMapping({ onMap }) {
             }
         } catch (apiErr) {
             console.error('Terminal init failed:', apiErr);
-            const msg = apiErr.response?.data?.error || 'Invalid Restaurant ID or Subdomain';
+            const msg = apiErr.response?.data?.error
+                ? `[Server] ${apiErr.response.data.error}`
+                : apiErr.message?.includes('Local DB Error')
+                    ? apiErr.message
+                    : `[Network/Connection] ${apiErr.message || 'Invalid Restaurant ID or Subdomain'}`;
             setError(msg);
         } finally {
             setLoading(false);

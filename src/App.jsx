@@ -142,7 +142,6 @@ function AppContent() {
                         {activeTab === 'operations' && <Operations onNavigate={handleTabChange} />}
                         {activeTab === 'dashboard' && <Dashboard />}
                         {activeTab === 'billing' && <Billing resetSignal={billingKey} restoredOrder={restoredOrder} onOrderRestored={() => setRestoredOrder(null)} />}
-                        {activeTab === 'kitchen_view' && <KotManagement />}
                         {activeTab === 'online_orders' && <OnlineOrders />}
                         {activeTab === 'running_orders' && <RunningOrders />}
                         {activeTab === 'order_history' && <OrderHistory />}

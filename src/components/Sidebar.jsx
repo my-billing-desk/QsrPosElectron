@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag,
-    ShoppingCart, BarChart2, PieChart, ArrowRightLeft, Trash2, Package, ClipboardCheck
+    ShoppingCart, BarChart2, PieChart, ArrowRightLeft, Trash2, Package, ClipboardCheck, ChevronDown
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-
 import { useAuth } from '../context/AuthContext';
 
 export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, onLogout }) {
     const { themeColor } = useTheme();
     const { user } = useAuth();
+    const [expandedGroups, setExpandedGroups] = useState({});
 
     // Mapping of menu item IDs to Permission IDs
     const permissionMapping = {
@@ -53,7 +53,6 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
                 { id: 'order_history', label: 'Order History', icon: FileText },
                 { id: 'running_orders', label: 'Running Orders', icon: PlayCircle },
                 { id: 'running_summary', label: 'Order Summary', icon: FolderOpen },
-                { id: 'kitchen_view', label: 'Kitchen View (KDS)', icon: ChefHat },
                 { id: 'day_shift', label: 'Day Shift', icon: Clock },
             ]
         },
@@ -93,6 +92,21 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
         items: group.items.filter(item => hasPermission(item.id))
     })).filter(group => group.items.length > 0);
 
+    // Auto-expand group containing active tab
+    useEffect(() => {
+        const groupIndex = menuGroups.findIndex(g => g.items.some(i => i.id === activeTab));
+        if (groupIndex !== -1) {
+            setExpandedGroups(prev => ({ ...prev, [groupIndex]: true }));
+        }
+    }, [activeTab]);
+
+    const toggleGroup = (idx) => {
+        setExpandedGroups(prev => ({
+            ...prev,
+            [idx]: !prev[idx]
+        }));
+    };
+
     return (
         <div className={`${isCollapsed ? 'w-20' : 'w-72'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 shadow-xl z-20`}>
             {/* Header */}
@@ -106,73 +120,100 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             </div>
 
             {/* Scrollable Nav */}
-            <nav className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-                {menuGroups.map((group, idx) => (
-                    <div key={idx} className="space-y-1">
-                        {!isCollapsed && (
-                            <div className="px-3 mb-2 flex items-center justify-between group cursor-pointer">
-                                <h3
-                                    className="text-xs font-bold uppercase tracking-wider transition-colors text-gray-400 group-hover:text-gray-600"
-                                    style={{ '--hover-color': themeColor }}
+            <nav className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 font-sans">
+                {menuGroups.map((group, idx) => {
+                    const isExpanded = expandedGroups[idx];
+                    return (
+                        <div key={idx} className="space-y-1">
+                            {!isCollapsed && (
+                                <div
+                                    onClick={() => toggleGroup(idx)}
+                                    className="px-3 py-2 mb-1 flex items-center justify-between group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-all"
                                 >
-                                    {group.title}
-                                </h3>
+                                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 group-hover:text-gray-700 transition-colors">
+                                        {group.title}
+                                    </h4>
+                                    <div className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5" strokeWidth={3} /> : <ChevronRight className="w-3.5 h-3.5" strokeWidth={3} />}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className={`space-y-1 transition-all duration-300 overflow-hidden ${(!isCollapsed && !isExpanded) ? 'max-h-0' : 'max-h-[500px]'}`}>
+                                {group.items.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = activeTab === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => onTabChange(item.id)}
+                                            className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${isActive
+                                                ? 'shadow-lg shadow-orange-500/10 font-bold'
+                                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+                                                }`}
+                                            style={isActive ? {
+                                                backgroundColor: `${themeColor}15`,
+                                                color: themeColor
+                                            } : {}}
+                                            title={isCollapsed ? item.label : ''}
+                                        >
+                                            <div className="flex items-center min-w-0">
+                                                <Icon
+                                                    className={`w-5 h-5 shrink-0 ${!isActive ? 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500' : ''}`}
+                                                    style={isActive ? { color: themeColor } : {}}
+                                                />
+                                                {!isCollapsed && <span className="ml-3 truncate text-[13px] tracking-wide">{item.label}</span>}
+                                            </div>
+
+                                            {isActive && (
+                                                <div
+                                                    className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full"
+                                                    style={{ backgroundColor: themeColor }}
+                                                />
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        )}
-
-                        <div className="space-y-1">
-                            {group.items.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = activeTab === item.id;
-                                return (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => onTabChange(item.id)}
-                                        className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 group relative overflow-hidden ${isActive
-                                            ? 'shadow-sm font-semibold'
-                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                                            }`}
-                                        style={isActive ? {
-                                            backgroundColor: `${themeColor}15`,
-                                            color: themeColor
-                                        } : {}}
-                                        title={isCollapsed ? item.label : ''}
-                                    >
-                                        <div className="flex items-center min-w-0">
-                                            <Icon
-                                                className={`w-5 h-5 shrink-0 ${!isActive ? 'text-gray-500 group-hover:text-gray-700 dark:text-gray-500 dark:group-hover:text-gray-300' : ''}`}
-                                                style={isActive ? { color: themeColor } : {}}
-                                            />
-                                            {!isCollapsed && <span className="ml-3 truncate text-sm leading-none pt-0.5">{item.label}</span>}
-                                        </div>
-
-                                        {/* Active Indicator Bar */}
-                                        {isActive && (
-                                            <div
-                                                className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full"
-                                                style={{ backgroundColor: themeColor }}
-                                            />
-                                        )}
-                                    </button>
-                                );
-                            })}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </nav>
 
+            {/* User Profile */}
+            <div className={`px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all ${isCollapsed ? 'flex justify-center' : ''}`}>
+                <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+                    <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm"
+                        style={{ backgroundColor: themeColor }}
+                    >
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    {!isCollapsed && (
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate capitalize">{user?.name || 'User'}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{user?.role?.replace(/_/g, ' ') || 'Staff'}</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Footer Actions */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-1">
-                <button className="w-full flex items-center p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Reset Cache">
-                    <RotateCcw className="w-5 h-5" />
-                    {!isCollapsed && <span className="ml-3 font-medium text-sm">Reset Cache</span>}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/10 space-y-1">
+                <button
+                    className="w-full flex items-center p-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 hover:text-gray-900 transition-all group"
+                    title="Reset Cache"
+                >
+                    <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                    {!isCollapsed && <span className="ml-3 font-semibold text-xs tracking-wide">Reset Cache</span>}
                 </button>
                 <button
                     onClick={onLogout}
-                    className="w-full flex items-center p-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors" title="Logout"
+                    className="w-full flex items-center p-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 transition-all group"
+                    title="Logout"
                 >
-                    <LogOut className="w-5 h-5" />
-                    {!isCollapsed && <span className="ml-3 font-medium text-sm">Logout</span>}
+                    <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    {!isCollapsed && <span className="ml-3 font-semibold text-xs tracking-wide">Logout Account</span>}
                 </button>
             </div>
         </div>

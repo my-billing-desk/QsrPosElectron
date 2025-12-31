@@ -128,8 +128,8 @@ const syncMenu = (categories, items, tenantId) => {
             db.prepare('DELETE FROM items WHERE tenant_id = ?').run(tenantId);
             db.prepare('DELETE FROM categories WHERE tenant_id = ?').run(tenantId);
 
-            const insertCat = db.prepare('INSERT INTO categories (id, name, image, tenant_id) VALUES (?, ?, ?, ?)');
-            const insertItem = db.prepare('INSERT INTO items (id, name, price, category_id, image, tenant_id, data) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            const insertCat = db.prepare('INSERT OR REPLACE INTO categories (id, name, image, tenant_id) VALUES (?, ?, ?, ?)');
+            const insertItem = db.prepare('INSERT OR REPLACE INTO items (id, name, price, category_id, image, tenant_id, data) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
             for (const cat of categories) {
                 insertCat.run(cat.id, cat.name, cat.image || cat.icon, tenantId);
