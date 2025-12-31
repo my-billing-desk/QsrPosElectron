@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, FileSpreadsheet, FileText, RotateCcw, Eye, Edit, Trash2, X, Calendar, Download, List, Save, DollarSign } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export default function StockPurchase() {
     const [view, setView] = useState('list');
@@ -95,7 +96,7 @@ export default function StockPurchase() {
 
     const handleSave = async () => {
         if (!formData.supplierId || !formData.purchaseDate) {
-            alert("Please fill required fields (Supplier, Date)");
+            toast.error("Please fill required fields (Supplier, Date)");
             return;
         }
         try {
@@ -103,12 +104,12 @@ export default function StockPurchase() {
                 ...formData,
                 totalAmount: calculateGrandTotal()
             });
-            alert('Purchase Added Successfully!');
+            toast.success('Purchase Added Successfully!');
             setView('list');
             loadData();
         } catch (error) {
             console.error(error);
-            alert('Error adding purchase: ' + (error.response?.data?.message || error.message));
+            toast.error('Error adding purchase: ' + (error.response?.data?.message || error.message));
         }
     };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Clock, Trash2, RotateCcw, Search, ShoppingBag } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export function HoldOrdersSlider({ isOpen, onClose, onRestore }) {
     const [heldOrders, setHeldOrders] = useState([]);

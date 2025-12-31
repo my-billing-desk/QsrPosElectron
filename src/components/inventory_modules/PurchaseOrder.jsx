@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, MoreHorizontal, Clock, ShoppingCart, Truck, ChevronDown, Search, X, Calendar, CornerDownLeft, Download, List } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export default function PurchaseOrder() {
     const [view, setView] = useState('list');
@@ -98,12 +99,12 @@ export default function PurchaseOrder() {
                 ...formData,
                 grandTotal: calculateGrandTotal()
             });
-            alert('Purchase Order Created!');
+            toast.success('Purchase Order Created!');
             setView('list');
             loadData();
         } catch (error) {
             console.error(error);
-            alert('Error creating PO: ' + error.message);
+            toast.error('Error creating PO: ' + error.message);
         }
     };
 
@@ -111,10 +112,10 @@ export default function PurchaseOrder() {
         if (!confirm("Are you sure you want to mark this order as Returned?")) return;
         try {
             setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'Returned' } : o));
-            alert("Order marked as Returned.");
+            toast.success("Order marked as Returned.");
         } catch (error) {
             console.error(error);
-            alert("Failed to return order");
+            toast.error("Failed to return order");
         }
     };
 

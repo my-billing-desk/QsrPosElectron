@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Save, FileText, Calendar } from 'lucide-react';
 import { inventoryService, menuService } from '../../services/api';
-
-// Simple toast placeholder if not installed, or import from library if available
-const toast = {
-    success: (msg) => console.log('Success:', msg),
-    error: (msg) => console.error('Error:', msg),
-    log: (msg) => console.log('Log:', msg)
-};
-// If POS has react-hot-toast installed (it should), we can import it:
-// import toast from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 export default function ClosingStock() {
     const [materials, setMaterials] = useState([]);
@@ -97,13 +89,13 @@ export default function ClosingStock() {
         try {
             await inventoryService.updateClosingStock({ updates });
             // toast.success("Closing stock updated successfully");
-            alert("Closing stock updated successfully");
+            toast.success("Closing stock updated successfully");
             loadData();
             setInputData({});
         } catch (error) {
             console.error(error);
             // toast.error("Failed to save stock");
-            alert("Failed to save stock");
+            toast.error("Failed to save stock");
         }
     };
 

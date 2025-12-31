@@ -341,7 +341,9 @@ export const authService = {
     initTerminal: (idOrSubdomain) => {
         console.log(`[API_DEBUG] Terminal Init for: "${idOrSubdomain}" to ${API_URL}`);
         return api.get(`/auth/init-terminal/${idOrSubdomain}`);
-    }
+    },
+    sendOTP: (tenantId) => api.post('/auth/send-otp', { tenantId }),
+    verifyOTP: (tenantId, otp) => api.post('/auth/verify-otp', { tenantId, otp })
 };
 
 export const inventoryService = {

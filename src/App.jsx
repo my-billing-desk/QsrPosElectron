@@ -32,6 +32,7 @@ import { TenantMapping } from './components/TenantMapping';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { HoldOrdersSlider } from './components/HoldOrdersSlider';
+import { Toaster } from 'react-hot-toast';
 
 // Loading Component
 const LoadingFallback = () => (
@@ -187,6 +188,7 @@ function App() {
     return (
         <AuthProvider>
             <ThemeProvider>
+                <Toaster position="top-right" />
                 <AppContent />
             </ThemeProvider>
         </AuthProvider>

@@ -75,7 +75,7 @@ const saveUsers = (users) => {
                 id: user.id,
                 username: user.username,
                 display_name: user.displayName || user.name,
-                role: user.role,
+                role: user.role || user.roleData?.name || 'staff',
                 password_hash: user.password,
                 passcode_hash: user.passcode,
                 tenant_id: user.tenantId,
@@ -116,21 +116,55 @@ function formatUserResponse(user) {
 }
 
 const syncMenu = (categories, items, tenantId) => {
-    db.prepare('DELETE FROM items WHERE tenant_id = ?').run(tenantId);
-    db.prepare('DELETE FROM categories WHERE tenant_id = ?').run(tenantId);
+    console.log(`[DB] Syncing menu for tenant ${tenantId}: ${categories.length} categories, ${items.length} items`);
 
-    const insertCat = db.prepare('INSERT OR REPLACE INTO categories (id, name, image, tenant_id) VALUES (?, ?, ?, ?)');
-    const insertItem = db.prepare('INSERT OR REPLACE INTO items (id, name, price, category_id, image, tenant_id, data) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    // We disable foreign keys temporarily because DELETE/REPLACE operations
+    // can trigger immediate FK violations even if the parent is restored in the same transaction.
+    db.pragma('foreign_keys = OFF');
 
-    const transaction = db.transaction(() => {
-        for (const cat of categories) {
-            insertCat.run(cat.id, cat.name, cat.image || cat.icon, tenantId);
-        }
-        for (const item of items) {
-            insertItem.run(item.id, item.name, item.price, item.categoryId || item.Category?.id, item.image, tenantId, JSON.stringify(item));
-        }
-    });
-    transaction();
+    try {
+        const transaction = db.transaction(() => {
+            // Clear existing data for this tenant
+            db.prepare('DELETE FROM items WHERE tenant_id = ?').run(tenantId);
+            db.prepare('DELETE FROM categories WHERE tenant_id = ?').run(tenantId);
+
+            const insertCat = db.prepare('INSERT INTO categories (id, name, image, tenant_id) VALUES (?, ?, ?, ?)');
+            const insertItem = db.prepare('INSERT INTO items (id, name, price, category_id, image, tenant_id, data) VALUES (?, ?, ?, ?, ?, ?, ?)');
+
+            for (const cat of categories) {
+                insertCat.run(cat.id, cat.name, cat.image || cat.icon, tenantId);
+            }
+
+            for (const item of items) {
+                // Determine category_id, ensuring it exists in the categories we just inserted
+                // This is a safety check to prevent orphans in items table
+                const categoryId = item.categoryId || item.Category?.id;
+                const categoryExists = categories.some(c => c.id === categoryId);
+
+                if (categoryExists || !categoryId) {
+                    insertItem.run(
+                        item.id,
+                        item.name,
+                        item.price,
+                        categoryId,
+                        item.image,
+                        tenantId,
+                        JSON.stringify(item)
+                    );
+                } else {
+                    console.warn(`[DB] Skipping item ${item.name} due to missing category ${categoryId}`);
+                }
+            }
+        });
+
+        transaction();
+        console.log('[DB] Menu sync successful');
+    } catch (error) {
+        console.error('[DB] Menu sync failed:', error);
+        throw error;
+    } finally {
+        db.pragma('foreign_keys = ON');
+    }
 };
 
 const getLocalMenu = (tenantId) => {

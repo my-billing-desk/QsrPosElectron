@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Download, Search, Filter, Calendar, X, ChevronDown, List } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export default function Wastage() {
     const [view, setView] = useState('list');
@@ -63,12 +64,12 @@ export default function Wastage() {
         try {
             const total = formData.items.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
             await inventoryService.createWastage({ ...formData, totalAmount: total });
-            alert('Wastage record saved!');
+            toast.success('Wastage record saved!');
             setView('list');
             loadData();
         } catch (error) {
             console.error(error);
-            alert('Error saving wastage: ' + error.message);
+            toast.error('Error saving wastage: ' + error.message);
         }
     };
 

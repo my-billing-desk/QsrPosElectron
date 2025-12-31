@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
+import toast from 'react-hot-toast';
 import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2, User, Tag, Save, CheckCircle, PauseCircle, ClipboardList } from 'lucide-react';
 import { SpecialNoteModal } from './SpecialNoteModal';
 import { ItemCustomizationModal } from './ItemCustomizationModal';
@@ -1586,7 +1587,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 }
 
 const handleSaveOrder = () => {
-    alert('Order saved successfully!');
+    toast.success('Order saved successfully!');
 };
 
 export default Billing;

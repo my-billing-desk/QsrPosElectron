@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { authService, menuService, orderService } from '../services/api';
 import { useSync } from '../hooks/useSync';
+import toast from 'react-hot-toast';
 
 export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
     const [pendingOrders, setPendingOrders] = useState(0);
@@ -56,7 +57,7 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                 message += `• Failed to sync: ${result.failed} orders`;
             }
 
-            alert(message);
+            toast.success(message);
 
             // Reload to ensure fresh data from local DB is displayed
             // window.location.reload(); // Removed to prevent logout effect
@@ -64,7 +65,7 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
 
         } catch (error) {
             console.error('Manual sync failed:', error);
-            alert('❌ Sync failed!\n\nPlease check your internet connection and try again.');
+            toast.error('Sync failed! Please check your internet connection.');
         } finally {
             setIsInternalSyncing(false);
         }

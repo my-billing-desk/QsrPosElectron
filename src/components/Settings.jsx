@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Printer, RefreshCw, ChefHat, Plus, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export function Settings() {
     const [printers, setPrinters] = useState([]);
@@ -62,7 +63,7 @@ export function Settings() {
         localStorage.setItem('pos_printer_name', selectedPrinter);
         localStorage.setItem('pos_station_mapping', JSON.stringify(stationMapping));
         localStorage.setItem('pos_kitchen_routing_enabled', enableKitchenRouting);
-        alert('Printer Configuration Saved!');
+        toast.success('Printer Configuration Saved!');
     };
 
     return (
@@ -189,7 +190,7 @@ export function Settings() {
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
                         <button
                             onClick={async () => {
-                                if (!selectedPrinter) return alert('Please select a printer first');
+                                if (!selectedPrinter) return toast.error('Please select a printer first');
                                 try {
                                     const testHtml = `
                                         <html><body>
@@ -201,9 +202,9 @@ export function Settings() {
                                         </body></html>
                                     `;
                                     await window.electronAPI.printBill({ printerName: selectedPrinter, htmlContent: testHtml });
-                                    alert('Test print sent!');
+                                    toast.success('Test print sent!');
                                 } catch (e) {
-                                    alert('Test print failed: ' + e.message);
+                                    toast.error('Test print failed: ' + e.message);
                                 }
                             }}
                             className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors flex items-center gap-2"

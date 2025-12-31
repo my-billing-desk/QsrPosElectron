@@ -5,11 +5,46 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
+import { useAuth } from '../context/AuthContext';
+
 export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, onLogout }) {
     const { themeColor } = useTheme();
+    const { user } = useAuth();
+
+    // Mapping of menu item IDs to Permission IDs
+    const permissionMapping = {
+        'operations': [30, 140],
+        'online_orders': [9],
+        'order_history': [144],
+        'running_orders': [30, 140],
+        'running_summary': [30, 140],
+        'kitchen_view': [7],
+        'day_shift': [27],
+        'stock_purchase': [17],
+        'purchase_order': [17],
+        'inventory': [14, 15],
+        'available_stock': [14],
+        'closing_stock': [18],
+        'stock_transfer': [19],
+        'wastage': [18],
+        'inventory_reports': [10],
+        'stock_summary': [10]
+    };
+
+    const hasPermission = (itemId) => {
+        if (!user) return false;
+        if (user.role === 'super_admin' || user.role === 'admin') return true;
+
+        const requiredIds = permissionMapping[itemId];
+        if (!requiredIds) return true; // Default allow if not mapped
+
+        return requiredIds.some(reqId =>
+            user.permissions?.some(p => p.id === reqId && (p.value === true || p.read === true || p.write === true))
+        );
+    };
 
     // Desktop POS Menu Structure
-    const menuGroups = [
+    const allMenuGroups = [
         {
             title: 'POS Operations',
             items: [
@@ -44,12 +79,6 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
                 { id: 'wastage', label: 'Wastage', icon: Trash2 },
             ]
         },
-        // {
-        //     title: 'Production',
-        //     items: [
-        //         { id: 'production', label: 'Production', icon: Factory },
-        //     ]
-        // },
         {
             title: 'Reports',
             items: [
@@ -58,6 +87,11 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             ]
         }
     ];
+
+    const menuGroups = allMenuGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => hasPermission(item.id))
+    })).filter(group => group.items.length > 0);
 
     return (
         <div className={`${isCollapsed ? 'w-20' : 'w-72'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 shadow-xl z-20`}>
