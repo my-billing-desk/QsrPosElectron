@@ -4,9 +4,6 @@
 
 @layer base {
   :root {
-    /* ===== POS COLOR SYSTEM ===== */
-    /* All colors start as NEUTRAL - You will guide me to change each one */
-
     /* === GLOBAL THEME VARIABLES === */
     --bg-main: #F8FAFC;
     --bg-surface: #FFFFFF;
@@ -15,6 +12,7 @@
 
     --text-main: #1E293B;
     --text-muted: #64748B;
+    --text-light: #9CA3AF;
 
     --color-primary: #10B981;
     --color-primary-hover: #059669;
@@ -28,11 +26,16 @@
     --border-color: #E2E8F0;
 
     /* POS Button Variations */
-    --pos-btn-pay: var(--color-primary);
+    --pos-btn-pay: var(--status-success);
     --pos-btn-hold: var(--status-warning);
     --pos-btn-save: var(--color-secondary);
     --pos-btn-cancel: var(--status-error);
     --pos-btn-text: #FFFFFF;
+
+    /* Sidebar specific */
+    --sidebar-active: rgba(16, 185, 129, 0.1);
+    --sidebar-active-text: #10B981;
+    --sidebar-text: #94A3B8;
 
     /* Typography */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -42,7 +45,7 @@
     @apply antialiased;
     font-family: var(--font-family);
     background-color: var(--bg-main);
-    color: var(--text-primary);
+    color: var(--text-main);
   }
 }
 
