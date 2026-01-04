@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Save, FileText, Calendar } from 'lucide-react';
 import { inventoryService, menuService } from '../../services/api';
 import toast from 'react-hot-toast';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function ClosingStock() {
     const [materials, setMaterials] = useState([]);
@@ -11,7 +12,7 @@ export default function ClosingStock() {
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(getTodayLocal());
     const [updateFrequency, setUpdateFrequency] = useState('Daily');
 
     // Pagination

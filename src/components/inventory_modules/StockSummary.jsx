@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, Download } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function StockSummary() {
     const [loading, setLoading] = useState(false);
@@ -9,8 +10,8 @@ export default function StockSummary() {
         rawMaterial: '',
         category: 'All',
         unitType: 'Purchase Unit',
-        fromDate: new Date().toISOString().split('T')[0],
-        toDate: new Date().toISOString().split('T')[0]
+        fromDate: getTodayLocal(),
+        toDate: getTodayLocal()
     });
 
     const categories = ['All', 'Dairy', 'Vegetable', 'Bakery', 'Frozen', 'Spices'];
@@ -49,8 +50,8 @@ export default function StockSummary() {
             rawMaterial: '',
             category: 'All',
             unitType: 'Purchase Unit',
-            fromDate: new Date().toISOString().split('T')[0],
-            toDate: new Date().toISOString().split('T')[0]
+            fromDate: getTodayLocal(),
+            toDate: getTodayLocal()
         });
         // Reload to reset
         handleSearch();

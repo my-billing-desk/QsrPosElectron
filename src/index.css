@@ -30,7 +30,7 @@
     --pos-btn-hold: var(--status-warning);
     --pos-btn-save: var(--color-secondary);
     --pos-btn-cancel: var(--status-error);
-    --pos-btn-text: #FFFFFF;
+    --pos-btn-text: var(--bg-surface);
 
     /* Sidebar specific */
     --sidebar-active: rgba(16, 185, 129, 0.1);
@@ -104,10 +104,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: var(--bg-main);
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

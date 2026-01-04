@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Filter, Plus, FileText, Download, RotateCcw } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function AvailableStock() {
     const [loading, setLoading] = useState(false);
@@ -8,7 +9,7 @@ export default function AvailableStock() {
     const [filters, setFilters] = useState({
         rawMaterial: '',
         category: 'All',
-        date: new Date().toISOString().split('T')[0] // Default to today
+        date: getTodayLocal() // Default to today
     });
     const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -43,7 +44,7 @@ export default function AvailableStock() {
         setFilters({
             rawMaterial: '',
             category: 'All',
-            date: new Date().toISOString().split('T')[0]
+            date: getTodayLocal()
         });
         setMaterials([]);
         setHasLoaded(false);

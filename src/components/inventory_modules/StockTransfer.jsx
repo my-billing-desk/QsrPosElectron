@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRightLeft, Store, X, Plus, Trash2, Search, ChevronDown, Calendar } from 'lucide-react';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function StockTransfer() {
     const [transfers, setTransfers] = useState([]);
@@ -7,7 +8,7 @@ export default function StockTransfer() {
 
     // Form State
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayLocal(),
         sourceOutlet: '',
         destinationOutlet: '',
         items: [{ itemId: '', quantity: '', unit: '' }]

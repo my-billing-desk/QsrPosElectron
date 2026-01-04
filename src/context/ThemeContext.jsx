@@ -5,16 +5,35 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
     const [theme, setTheme] = useState({
-        themeColor: '#fa8072',
-        themeName: 'Coral',
-        palette: ['#fa8072', '#ff8c69', '#ff9c7d', '#ffac91', '#ffbca5']
+        themeColor: '#10B981',
+        themeName: 'Emerald Slate',
+        palette: ['#10B981', '#0F172A', '#F8FAFC']
     });
 
+    // Monitor token changes to refetch theme on login
+    const [currentToken, setCurrentToken] = useState(localStorage.getItem('pos_token'));
+
     useEffect(() => {
-        const fetchTheme = async () => {
+        // Watch for token changes
+        const interval = setInterval(() => {
+            const newToken = localStorage.getItem('pos_token');
+            if (newToken !== currentToken) {
+                setCurrentToken(newToken);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [currentToken]);
+
+    useEffect(() => {
+        const fetchAndApplyTheme = async () => {
             try {
                 const token = localStorage.getItem('pos_token');
-                if (!token) return;
+                if (!token) {
+                    // Apply default theme
+                    applyDefaultTheme();
+                    return;
+                }
 
                 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
                 const res = await axios.get(`${API_URL}/config/outlet`, {
@@ -23,37 +42,58 @@ export function ThemeProvider({ children }) {
 
                 if (res.data?.data) {
                     const data = res.data.data;
-                    let palette = ['#fa8072', '#ff8c69', '#ff9c7d', '#ffac91', '#ffbca5'];
+
+                    // Try to parse the full theme object from themePalette
                     if (data.themePalette) {
                         try {
-                            palette = JSON.parse(data.themePalette);
+                            const themeObject = JSON.parse(data.themePalette);
+
+                            // Apply theme settings if available
+                            if (themeObject.settings) {
+                                applyThemeSettings(themeObject.settings);
+                            }
+
+                            setTheme({
+                                themeColor: themeObject.settings?.['--color-primary'] || data.themeColor || '#10B981',
+                                themeName: data.themeName || themeObject.name || 'Default',
+                                palette: themeObject
+                            });
+
+                            console.log('[POS THEME] Applied tenant theme:', data.themeName);
+                            return;
                         } catch (e) {
-                            console.error('Failed to parse palette', e);
+                            console.error('Failed to parse theme palette', e);
                         }
-                    } else if (data.themeColor) {
-                        palette = [data.themeColor, data.themeColor, data.themeColor, data.themeColor, data.themeColor];
                     }
 
-                    const newTheme = {
-                        themeColor: data.themeColor || '#fa8072',
-                        themeName: data.themeName || 'Coral',
-                        palette: palette
+                    // Fallback to simple theme color
+                    const simpleTheme = {
+                        themeColor: data.themeColor || '#10B981',
+                        themeName: data.themeName || 'Default',
+                        palette: [data.themeColor || '#10B981']
                     };
-                    setTheme(newTheme);
-                    applyTheme(newTheme.palette);
+                    setTheme(simpleTheme);
+
+                    // Apply basic color
+                    const root = document.documentElement;
+                    root.style.setProperty('--color-primary', simpleTheme.themeColor);
+                    root.style.setProperty('--color-primary-hover', simpleTheme.themeColor);
+
+                    console.log('[POS THEME] Applied simple theme:', simpleTheme.themeName);
                 }
             } catch (error) {
                 console.error('Error fetching theme in POS:', error);
+                applyDefaultTheme();
             }
         };
 
-        fetchTheme();
-    }, []);
+        fetchAndApplyTheme();
+    }, [currentToken]);
 
-    const applyTheme = (themeData) => {
+    const applyThemeSettings = (settings) => {
         const root = document.documentElement;
 
-        // Reset any existing override variables to prevent leakage between themes
+        // Reset previous theme variables
         const variablesToReset = [
             '--bg-main', '--bg-surface', '--bg-sidebar', '--bg-header',
             '--text-main', '--text-muted', '--text-light',
@@ -64,38 +104,38 @@ export function ThemeProvider({ children }) {
         ];
         variablesToReset.forEach(v => root.style.removeProperty(v));
 
-        // 1. Support granular pro settings (Preferred)
-        if (themeData.settings) {
-            Object.entries(themeData.settings).forEach(([key, value]) => {
-                root.style.setProperty(key, value);
-            });
-            return;
-        }
+        // Apply new theme settings
+        Object.entries(settings).forEach(([key, value]) => {
+            root.style.setProperty(key, value);
+        });
+    };
 
-        // 2. Support fixed theme IDs (Legacy Compatibility)
-        if (themeData.id === 'emerald_slate') {
-            const defaults = {
-                '--bg-main': '#F8FAFC', '--bg-surface': '#FFFFFF', '--bg-sidebar': '#0F172A',
-                '--bg-header': '#FFFFFF', '--text-main': '#1E293B', '--text-muted': '#64748B',
-                '--color-primary': '#10B981', '--color-primary-hover': '#059669', '--color-secondary': '#64748B',
-                '--status-success': '#22C55E', '--status-warning': '#F59E0B', '--status-error': '#EF4444',
-                '--sidebar-active': 'rgba(16, 185, 129, 0.1)', '--sidebar-active-text': '#10B981',
-                '--sidebar-text': '#94A3B8', '--border-color': '#E2E8F0'
-            };
-            Object.entries(defaults).forEach(([k, v]) => root.style.setProperty(k, v));
-            return;
-        }
-
-        // 3. Fallback for color arrays
-        const colors = themeData.colors || themeData.palette || (Array.isArray(themeData) ? themeData : null);
-
-        if (Array.isArray(colors)) {
-            root.style.setProperty('--color-primary', colors[0] || '#fa8072');
-            root.style.setProperty('--bg-sidebar', colors[1] || '#020617');
-            root.style.setProperty('--bg-main', colors[2] || '#0F172A');
-            root.style.setProperty('--color-primary-hover', colors[0]);
-            root.style.setProperty('--sidebar-active-text', colors[0]);
-        }
+    const applyDefaultTheme = () => {
+        const defaultSettings = {
+            '--bg-main': '#F8FAFC',
+            '--bg-surface': '#FFFFFF',
+            '--bg-sidebar': '#0F172A',
+            '--bg-header': '#FFFFFF',
+            '--text-main': '#1E293B',
+            '--text-muted': '#64748B',
+            '--color-primary': '#10B981',
+            '--color-primary-hover': '#059669',
+            '--color-secondary': '#64748B',
+            '--status-success': '#22C55E',
+            '--status-warning': '#F59E0B',
+            '--status-error': '#EF4444',
+            '--status-info': '#3B82F6',
+            '--border-color': '#E2E8F0',
+            '--sidebar-active': 'rgba(16, 185, 129, 0.1)',
+            '--sidebar-active-text': '#10B981',
+            '--sidebar-text': '#94A3B8',
+            '--pos-btn-pay': '#22C55E',
+            '--pos-btn-hold': '#F59E0B',
+            '--pos-btn-save': '#64748B',
+            '--pos-btn-cancel': '#EF4444',
+        };
+        applyThemeSettings(defaultSettings);
+        console.log('[POS THEME] Applied default theme');
     };
 
     return (

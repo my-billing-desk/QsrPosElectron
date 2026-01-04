@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, FileSpreadsheet, FileText, RotateCcw, Eye, Edit, Trash2, X, Calendar, Download, List, Save, DollarSign } from 'lucide-react';
 import { inventoryService } from '../../services/api';
 import toast from 'react-hot-toast';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function StockPurchase() {
     const [view, setView] = useState('list');
@@ -330,7 +331,7 @@ export default function StockPurchase() {
 function initialFormState() {
     return {
         supplierId: '',
-        purchaseDate: new Date().toISOString().split('T')[0],
+        purchaseDate: getTodayLocal(),
         invoiceNumber: '',
         orderTax: 0,
         discount: 0,

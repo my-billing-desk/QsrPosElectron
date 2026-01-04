@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { menuService, orderService, settingsService } from '../services/api';
+import { getTodayLocal } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2, User, Tag, Save, CheckCircle, PauseCircle, ClipboardList } from 'lucide-react';
 import { SpecialNoteModal } from './SpecialNoteModal';
@@ -490,12 +491,10 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
                     // Aggregation Logic (Final Bill with all KOTs)
                     if (order.tableNumber) {
-                        const startOfDay = new Date();
-                        startOfDay.setHours(0, 0, 0, 0);
                         try {
                             const res = await orderService.getAll({
                                 tableNumber: order.tableNumber,
-                                startDate: startOfDay.toISOString()
+                                startDate: getTodayLocal() + ' 00:00:00'
                             });
 
                             if (res.data && res.data.length > 1) {
@@ -681,8 +680,12 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
             const existingIndex = prev.findIndex(i => i.signature === signature);
             if (existingIndex >= 0) {
+                // Item exists - increment quantity by exactly qty (default 1)
                 const newCart = [...prev];
-                newCart[existingIndex].qty += qty;
+                newCart[existingIndex] = {
+                    ...newCart[existingIndex],
+                    qty: newCart[existingIndex].qty + qty
+                };
                 return newCart;
             }
 

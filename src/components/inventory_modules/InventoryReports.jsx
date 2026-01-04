@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, FileText, ChevronRight } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import { getTodayLocal } from '../../utils/dateUtils';
 
 export default function InventoryReports() {
     const [activeReport, setActiveReport] = useState('All');
@@ -109,11 +110,11 @@ export default function InventoryReports() {
 
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-600">From Date</label>
-                    <input type="date" className="p-2 border border-gray-300 rounded text-sm bg-white" defaultValue={new Date().toISOString().split('T')[0]} />
+                    <input type="date" className="p-2 border border-gray-300 rounded text-sm bg-white" defaultValue={getTodayLocal()} />
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-600">To Date</label>
-                    <input type="date" className="p-2 border border-gray-300 rounded text-sm bg-white" defaultValue={new Date().toISOString().split('T')[0]} />
+                    <input type="date" className="p-2 border border-gray-300 rounded text-sm bg-white" defaultValue={getTodayLocal()} />
                 </div>
 
                 <button onClick={handleSearch} className="px-6 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 mb-0.5 text-sm">Search</button>

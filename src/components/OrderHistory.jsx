@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Eye, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { orderService } from '../services/api';
+import { getTodayLocal } from '../utils/dateUtils';
 
 export function OrderHistory() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
+        startDate: getTodayLocal(),
+        endDate: getTodayLocal(),
         orderNumber: '',
         type: 'All',
         status: 'All',

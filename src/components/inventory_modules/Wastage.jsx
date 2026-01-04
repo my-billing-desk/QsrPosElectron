@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Download, Search, Filter, Calendar, X, ChevronDown, List } from 'lucide-react';
 import { inventoryService } from '../../services/api';
+import { getTodayLocal } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
 
 export default function Wastage() {
@@ -305,7 +306,7 @@ export default function Wastage() {
 
 function initialFormState() {
     return {
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayLocal(),
         type: 'Raw Material',
         items: [{ rawMaterialId: '', quantity: '', unit: '', avgPrice: 0, amount: 0, description: '' }]
     };
