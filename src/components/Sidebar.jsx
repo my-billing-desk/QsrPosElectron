@@ -21,6 +21,7 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
         'day_shift': [27],
         'stock_purchase': [17],
         'purchase_order': [17],
+        'purchase_return': [17],
         'inventory': [14, 15],
         'available_stock': [14],
         'closing_stock': [18],
@@ -96,6 +97,7 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
                     items: [
                         { id: 'stock_purchase', label: 'Stock Purchase' },
                         { id: 'purchase_order', label: 'Purchase Order' },
+                        { id: 'purchase_return', label: 'Purchase Return' },
                     ]
                 },
                 {
@@ -157,7 +159,10 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             return (
                 <div key={item.id} className="space-y-1">
                     <button
-                        onClick={() => toggleGroup(item.id)}
+                        onClick={() => {
+                            if (isCollapsed) toggleSidebar();
+                            toggleGroup(item.id)
+                        }}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 group ${isOpen ? 'bg-gray-50/80 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
                     >
                         <div className="flex items-center min-w-0">
@@ -184,7 +189,10 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
         return (
             <button
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => {
+                    if (isCollapsed) toggleSidebar();
+                    onTabChange(item.id);
+                }}
                 className={`w-full flex items-center p-2.5 rounded-xl transition-all duration-200 group relative ${isActive
                     ? 'shadow-lg shadow-orange-500/5 bg-white dark:bg-gray-700 font-bold'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'

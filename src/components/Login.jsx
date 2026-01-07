@@ -60,8 +60,15 @@ export function Login({ isTouchMode }) {
         }
     };
 
+    const [isOffline, setIsOffline] = useState(false);
+
     const handleKeypadDelete = () => {
         setPasscode(prev => prev.slice(0, -1));
+    };
+
+    const toggleOfflineMode = () => {
+        setIsOffline(!isOffline);
+        localStorage.setItem('pos_mode', !isOffline ? 'offline' : 'online');
     };
 
     return (
@@ -72,6 +79,15 @@ export function Login({ isTouchMode }) {
                     <p className="text-gray-400 mt-2 font-medium">
                         {localStorage.getItem('pos_tenant_name') || 'Restaurant'} Terminal
                     </p>
+                    <div className="flex justify-center mt-4">
+                        <button
+                            onClick={toggleOfflineMode}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isOffline ? 'bg-gray-600 text-gray-200' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}
+                        >
+                            <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-gray-400' : 'bg-emerald-500 animate-pulse'}`}></div>
+                            {isOffline ? 'Offline Mode' : 'Online Mode'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex bg-gray-700/50 p-1 rounded-2xl mb-8">

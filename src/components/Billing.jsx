@@ -593,7 +593,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
                     const itemVariants = i.Variants || [];
 
-                    const variantMap = new Map();
+                    const variantMap = new window.Map();
                     groupVariants.forEach(v => variantMap.set(v.name, v));
                     itemVariants.forEach(v => variantMap.set(v.name, v));
 
