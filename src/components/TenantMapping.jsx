@@ -109,7 +109,7 @@ export function TenantMapping({ onMap }) {
 
                 // Sync Settings
                 if (data.settings && window.electronAPI.syncSettings) {
-                    await window.electronAPI.syncSettings(data.settings);
+                    await window.electronAPI.syncSettings({ settings: data.settings, tenantId: tenant.id });
                 } else if (data.settings) {
                     localStorage.setItem('cached_settings', JSON.stringify(data.settings));
                 }

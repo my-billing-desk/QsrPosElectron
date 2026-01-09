@@ -194,16 +194,31 @@ export function Login({ isTouchMode }) {
 
                 <div className="mt-8 pt-6 border-t border-gray-700/50 text-center">
                     <button
-                        onClick={() => {
-                            if (window.confirm("Disconnect from this restaurant and link to another?")) {
+                        onClick={async () => {
+                            if (window.confirm("Are you sure you want to logout from this restaurant?")) {
+                                // Clear Tenant
                                 localStorage.removeItem('pos_tenant_id');
                                 localStorage.removeItem('pos_tenant_name');
+
+                                // Clear Auth & Cache
+                                localStorage.removeItem('pos_token');
+                                localStorage.removeItem('cached_menu_items');
+                                localStorage.removeItem('cached_menu_cats');
+                                localStorage.removeItem('cached_settings');
+                                localStorage.removeItem('pos_mode');
+                                localStorage.removeItem('offline_orders');
+
+                                // Clear Electron Local DB
+                                if (window.electronAPI) {
+                                    await window.electronAPI.clearLocalData();
+                                }
+
                                 window.location.reload();
                             }
                         }}
-                        className="text-xs font-bold text-gray-500 hover:text-orange-500 uppercase tracking-widest transition-colors"
+                        className="text-xs font-bold text-gray-500 hover:text-red-500 uppercase tracking-widest transition-colors"
                     >
-                        Link Another Restaurant
+                        Logout Restaurant
                     </button>
                 </div>
             </div>

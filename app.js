@@ -38,7 +38,7 @@ function createWindow() {
 
     if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
         mainWindow.loadURL('http://localhost:5569').catch(e => logToFile('Failed to load URL, is Vite running?'));
-        mainWindow.webContents.openDevTools();
+        // mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
     }
@@ -102,6 +102,9 @@ app.whenReady().then(() => {
     ipcMain.handle('db-delete-order', async (event, id) => db.deleteLocalOrder(id));
     ipcMain.handle('db-mark-synced', async (event, id) => db.markOrderSynced(id));
     ipcMain.handle('db-get-all-orders', async (event) => db.getAllLocalOrders());
+    ipcMain.handle('db-clear-local-data', async (event) => db.clearLocalData());
+    ipcMain.handle('db-sync-settings', async (event, { settings, tenantId }) => db.saveSettings(settings, tenantId));
+    ipcMain.handle('db-get-settings', async (event, tenantId) => db.getSettings(tenantId));
 
     createWindow();
 

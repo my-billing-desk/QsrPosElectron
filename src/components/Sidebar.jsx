@@ -54,69 +54,8 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             id: 'pos_main',
             title: 'POS Operations',
             items: [
-                {
-                    id: 'sales_orders',
-                    label: 'Sales & Orders',
-                    icon: LayoutDashboard,
-                    items: [
-                        { id: 'operations', label: 'Dashboard' },
-                        { id: 'online_orders', label: 'Online Orders' },
-                        { id: 'order_history', label: 'Order History' },
-                    ]
-                },
-                {
-                    id: 'active_tracking',
-                    label: 'Active Tracking',
-                    icon: PlayCircle,
-                    items: [
-                        { id: 'running_orders', label: 'Running Orders' },
-                        { id: 'running_summary', label: 'Order Summary' },
-                    ]
-                },
-                { id: 'day_shift', label: 'Day Shift', icon: Clock },
-            ]
-        },
-        {
-            id: 'inventory_main',
-            title: 'Inventory & Stock',
-            items: [
-                {
-                    id: 'stock_mgmt',
-                    label: 'Stock Management',
-                    icon: Package,
-                    items: [
-                        { id: 'inventory', label: 'Overview' },
-                        { id: 'available_stock', label: 'Available Stock' },
-                        { id: 'closing_stock', label: 'Closing Stock' },
-                    ]
-                },
-                {
-                    id: 'procurement',
-                    label: 'Procurement',
-                    icon: ShoppingCart,
-                    items: [
-                        { id: 'stock_purchase', label: 'Stock Purchase' },
-                        { id: 'purchase_order', label: 'Purchase Order' },
-                        { id: 'purchase_return', label: 'Purchase Return' },
-                    ]
-                },
-                {
-                    id: 'consumption',
-                    label: 'Consumption',
-                    icon: Trash2,
-                    items: [
-                        { id: 'stock_transfer', label: 'Transfer' },
-                        { id: 'wastage', label: 'Wastage' },
-                    ]
-                },
-            ]
-        },
-        {
-            id: 'reports_main',
-            title: 'Reports',
-            items: [
-                { id: 'inventory_reports', label: 'Inventory Reports', icon: BarChart2 },
-                { id: 'stock_summary', label: 'Stock Summary', icon: PieChart },
+                { id: 'operations', label: 'Operations', icon: LayoutDashboard },
+                { id: 'order_history', label: 'Order History', icon: FileText }
             ]
         }
     ];
@@ -226,68 +165,74 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             </div>
 
             {/* Scrollable Nav */}
-            <nav className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 font-sans">
-                {menuGroups.map((group, idx) => {
-                    const groupId = `group-${idx}`;
-                    const isExpanded = expandedGroups[groupId] !== false; // Default expanded for main groups
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+                {menuGroups.map((group, idx) => (
+                    <div key={group.id} className="space-y-1">
+                        {!isCollapsed && (
+                            <h4 className="px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                                {group.title}
+                            </h4>
+                        )}
 
-                    return (
-                        <div key={group.id} className="space-y-2">
-                            {!isCollapsed && (
-                                <div
-                                    onClick={() => toggleGroup(groupId)}
-                                    className="px-3 py-1 flex items-center justify-between group cursor-pointer hover:bg-gray-50/50 rounded-lg transition-all"
-                                >
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 group-hover:text-gray-500 transition-colors">
-                                        {group.title}
-                                    </h4>
-                                    <ChevronDown className={`w-3 h-3 text-gray-300 transition-transform duration-300 ${isExpanded ? '' : '-rotate-90'}`} />
-                                </div>
-                            )}
-
-                            <div className={`space-y-1 transition-all duration-300 overflow-hidden ${(!isCollapsed && !isExpanded) ? 'max-h-0' : 'max-h-[1000px]'}`}>
-                                {group.items.map(item => renderMenuItem(item))}
-                            </div>
+                        <div className="space-y-1">
+                            {group.items.map(item => {
+                                const Icon = item.icon;
+                                const isActive = activeTab === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => onTabChange(item.id)}
+                                        className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 group ${isActive
+                                            ? 'bg-blue-50 text-[#444ce7] font-bold'
+                                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        <div className="flex items-center min-w-0 flex-1">
+                                            {Icon && <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#444ce7]' : 'text-gray-400 group-hover:text-gray-600'}`} />}
+                                            {!isCollapsed && <span className="ml-3 text-sm truncate">{item.label}</span>}
+                                        </div>
+                                        {isActive && !isCollapsed && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#444ce7]" />
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </nav>
 
-            {/* User Profile */}
-            <div className={`px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all ${isCollapsed ? 'flex justify-center' : ''}`}>
-                <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-                    <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg"
-                        style={{ backgroundColor: themeColor }}
-                    >
-                        {user?.name?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    {!isCollapsed && (
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-gray-900 dark:text-white truncate capitalize">{user?.name || 'User'}</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{user?.role?.replace(/_/g, ' ') || 'Staff'}</p>
+            {/* User Profile Section */}
+            <div className="px-3 py-4 border-t border-gray-50 bg-gray-50/30">
+                {!isCollapsed ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white shadow-sm border border-gray-100">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#444ce7] font-bold text-sm shrink-0">
+                                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
+                                <p className="text-[10px] text-gray-500 truncate capitalize">{user?.role?.replace(/_/g, ' ') || 'Staff'}</p>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/10 space-y-1">
-                <button
-                    className="w-full flex items-center p-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 hover:text-gray-900 transition-all group"
-                    title="Reset Cache"
-                >
-                    <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                    {!isCollapsed && <span className="ml-3 font-bold text-xs tracking-wide">Reset Cache</span>}
-                </button>
-                <button
-                    onClick={onLogout}
-                    className="w-full flex items-center p-3 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 transition-all group"
-                    title="Logout"
-                >
-                    <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                    {!isCollapsed && <span className="ml-3 font-bold text-xs tracking-wide">Logout Account</span>}
-                </button>
+                        <button
+                            onClick={onLogout}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all group"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            <span className="text-xs font-bold">Logout</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-[#444ce7] font-bold">
+                            {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                        <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

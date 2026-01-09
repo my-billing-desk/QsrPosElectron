@@ -42,7 +42,9 @@ export const orderService = {
         if (mode === 'offline' && window.electronAPI) {
             return orderService.getLocalOrders(params);
         }
+        // Online Mode: Try API, fallback to local if network down
         return api.get('/orders', { params }).catch(err => {
+            console.warn('[OFFLINE] API failed, using local orders');
             if (window.electronAPI) return orderService.getLocalOrders(params);
             throw err;
         });
@@ -133,9 +135,9 @@ export const orderService = {
 
             // Should we save to local DB anyway as backup/cache?
             if (window.electronAPI) {
-                // Save transparently as 'synced'
+                // Save transparently as 'synced' so it appears in local history
                 const syncedOrder = { ...res.data, status: 'synced', isOffline: false };
-                // await window.electronAPI.saveOrder(syncedOrder); // Optional: Sync back immediately
+                await window.electronAPI.saveOrder(syncedOrder, 'synced');
             }
             return res;
 
@@ -155,12 +157,20 @@ export const orderService = {
             }
 
             if (!error.response) {
-                console.log('Network Error: Queuing order (LocalStorage)');
+                console.log('Network Error: Queuing order (Offline)');
                 const offlineOrder = { ...data, _tempId: Date.now(), isOffline: true, createdAt: new Date().toISOString() };
-                const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-                queue.push(offlineOrder);
-                localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-                return { data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' } };
+
+                if (window.electronAPI) {
+                    // Save to SQLite
+                    await window.electronAPI.saveOrder(offlineOrder, 'queued');
+                    return { data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' } };
+                } else {
+                    // Fallback to LocalStorage (Web)
+                    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+                    queue.push(offlineOrder);
+                    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+                    return { data: { ...offlineOrder, id: `OFF-${offlineOrder._tempId}`, status: 'offline_queued' } };
+                }
             }
             throw error;
         }
@@ -171,32 +181,45 @@ export const orderService = {
     processQueue: async () => {
         let queue = [];
         if (window.electronAPI) {
-            queue = await window.electronAPI.getQueuedOrders();
+            queue = await window.electronAPI.getQueuedOrders(); // From SQLite
+            console.log('[SYNC] Found', queue.length, 'orders in local queue');
         } else {
             queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
         }
 
-        if (queue.length === 0) return { count: 0, success: true };
+        if (queue.length === 0) {
+            console.log('[SYNC] Queue is empty');
+            return { count: 0, success: true };
+        }
 
         const failed = [];
         let successCount = 0;
 
         for (const order of queue) {
             try {
+                console.log('[SYNC] Attempting to sync order:', order.orderNumber || order.id);
                 const { _tempId, isOffline, ...orderData } = order;
+
+                // Add tenantId explicitly if missing
+                if (!orderData.tenantId) {
+                    orderData.tenantId = localStorage.getItem('pos_tenant_id');
+                }
+
                 await api.post('/orders', orderData);
+                console.log('[SYNC] Order synced successfully');
 
                 if (window.electronAPI) {
                     await window.electronAPI.markOrderSynced(order.id || _tempId);
                 }
                 successCount++;
             } catch (err) {
-                console.error('Failed to sync order', order, err);
+                console.error('[SYNC] Failed to sync order:', order.orderNumber, err.response?.data || err.message);
                 failed.push(order);
             }
         }
 
         if (!window.electronAPI) {
+            // Update LocalStorage buffer with failed ones only
             localStorage.setItem(QUEUE_KEY, JSON.stringify(failed));
         }
 
@@ -309,6 +332,10 @@ export const specialNoteService = {
     create: (data) => api.post('/special-notes', data),
 };
 
+export const configService = {
+    getTables: () => api.get('/config/tables'),
+};
+
 export const outletService = {
     getConfig: () => api.get('/config/outlet'),
 };
@@ -318,18 +345,40 @@ export const settingsService = {
     getSettings: async () => {
         const mode = localStorage.getItem('pos_mode');
 
-        // Explicit Offline Mode - Cache Only
+        // Explicit Offline Mode - Cache Only (Electron First)
         if (mode === 'offline') {
+            if (window.electronAPI) {
+                const tenantId = localStorage.getItem('pos_tenant_id');
+                const localSettings = await window.electronAPI.getSettings(tenantId);
+                return { data: localSettings };
+            }
+            // Fallback to localStorage
             const cached = localStorage.getItem(SETTINGS_KEY);
             return cached ? { data: JSON.parse(cached) } : { data: {} };
         }
 
         // Online Mode - Fetch live
-        return api.get('/settings').then(res => {
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+        return api.get('/settings').then(async (res) => {
+            // Check if we are in Electron to sync to SQLite
+            if (window.electronAPI) {
+                const tenantId = localStorage.getItem('pos_tenant_id');
+                if (tenantId) {
+                    await window.electronAPI.syncSettings({ settings: res.data, tenantId });
+                }
+            } else {
+                // Web Fallback
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+            }
             return res;
-        }).catch(err => {
+        }).catch(async (err) => {
             console.warn('Settings API failed, using cache', err);
+
+            if (window.electronAPI) {
+                const tenantId = localStorage.getItem('pos_tenant_id');
+                const localSettings = await window.electronAPI.getSettings(tenantId);
+                if (localSettings && Object.keys(localSettings).length > 0) return { data: localSettings };
+            }
+
             const cached = localStorage.getItem(SETTINGS_KEY);
             return cached ? { data: JSON.parse(cached) } : { data: {} };
         });
@@ -338,8 +387,18 @@ export const settingsService = {
     // Sync settings from server
     syncFromServer: async () => {
         const res = await api.get('/settings');
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
-        console.log('[SYNC] Settings synced from server');
+
+        if (window.electronAPI) {
+            const tenantId = localStorage.getItem('pos_tenant_id');
+            if (tenantId) {
+                await window.electronAPI.syncSettings({ settings: res.data, tenantId });
+                console.log('[SYNC] Settings synced to SQLite');
+            }
+        } else {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(res.data));
+            console.log('[SYNC] Settings synced to LocalStorage');
+        }
+
         return res;
     }
 };

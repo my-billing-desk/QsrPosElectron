@@ -170,6 +170,18 @@ ipcMain.handle('db-get-all-orders', async (event) => {
     return db.getAllLocalOrders();
 });
 
+ipcMain.handle('db-clear-local-data', async (event) => {
+    return db.clearLocalData();
+});
+
+ipcMain.handle('db-sync-settings', async (event, { settings, tenantId }) => {
+    return db.saveSettings(settings, tenantId);
+});
+
+ipcMain.handle('db-get-settings', async (event, tenantId) => {
+    return db.getSettings(tenantId);
+});
+
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
 });

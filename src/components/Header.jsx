@@ -78,7 +78,7 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                 {/* New Order Button */}
                 <button
                     onClick={() => onNavigate && onNavigate('billing')}
-                    className="bg-red-700 hover:bg-red-800 text-white font-bold py-1.5 px-4 rounded-md text-sm shadow-sm transition-colors mx-2"
+                    className="bg-[#444ce7] hover:bg-[#3538cd] text-white font-bold py-1.5 px-4 rounded-md text-sm shadow-sm transition-colors mx-2"
                 >
                     New Order
                 </button>
@@ -150,28 +150,10 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
 
                     <div
                         className="flex flex-col items-center cursor-pointer hover:text-gray-900 group"
-                        onClick={() => onNavigate && onNavigate('online_orders')}
-                    >
-                        <Wifi className="w-6 h-6 mb-0.5 group-hover:text-green-600" />
-                        <span className="text-[10px]">Online</span>
-                    </div>
-
-                    <div
-                        className="flex flex-col items-center cursor-pointer hover:text-gray-900 group"
                         onClick={() => onNavigate && onNavigate('order_history')}
                     >
                         <FileText className="w-6 h-6 mb-0.5 group-hover:text-blue-600" />
                         <span className="text-[10px]">Orders</span>
-                    </div>
-
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
-                        <Clock className="w-6 h-6 mb-0.5" />
-                        <span className="text-[10px]">Recent</span>
-                    </div>
-
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
-                        <Bell className="w-6 h-6 mb-0.5" />
-                        <span className="text-[10px]">Alerts</span>
                     </div>
 
                     <div

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { menuService, orderService, settingsService } from '../services/api';
+import { menuService, orderService, settingsService, configService, outletService } from '../services/api';
 import { getTodayLocal } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 import { Search, Plus, Minus, Trash2, ShoppingBag, Bike, Utensils, Printer, ChefHat, Edit2, User, Tag, Save, CheckCircle, PauseCircle, ClipboardList } from 'lucide-react';
@@ -295,12 +295,15 @@ const generateKotHtml = (order) => {
 export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
     const [cart, setCart] = useState([]);
     const [orderType, setOrderType] = useState('dine-in');
-    const [activeCategory, setActiveCategory] = useState('All');
+    const [activeCategory, setActiveCategory] = useState({ id: 'All', name: 'All' });
 
     // Data State
-    const [categories, setCategories] = useState(['All']);
+    const [categories, setCategories] = useState([{ id: 'All', name: 'All' }]);
     const [items, setItems] = useState([]);
     const [settings, setSettings] = useState({ gst_mode: 'exclusive', gst_percentage: '5' });
+    const [outletConfig, setOutletConfig] = useState({});
+    const [tables, setTables] = useState([]);
+    const [selectedTable, setSelectedTable] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isOfflineMode, setIsOfflineMode] = useState(false);
 
@@ -322,6 +325,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
         if (restoredOrder) {
             setCart(restoredOrder.items || []);
             setOrderType(restoredOrder.type || 'dine-in');
+            if (restoredOrder.tableNumber) setSelectedTable(restoredOrder.tableNumber);
             setCustomerName(restoredOrder.customerName || '');
             setCustomerPhone(restoredOrder.customerPhone || '');
             setCurrentCustomer(restoredOrder.customer || null);
@@ -329,7 +333,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
             // Optional: delete from held orders immediately to prevent duplication?
             // For now, let's just restoring it to cart.
-            // If we want to remove it from "Hold" list, we should do it here or in app.
             if (window.electronAPI && window.electronAPI.deleteOrder) {
                 window.electronAPI.deleteOrder(restoredOrder.id).catch(console.error);
             }
@@ -353,7 +356,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
     const [discount, setDiscount] = useState(0);
 
     // Order Workflow Step
-    const [workflowStep, setWorkflowStep] = useState('cart'); // 'customer' or 'cart' - set to 'cart' to skip customer lookup during dev
+    const [workflowStep, setWorkflowStep] = useState('cart'); // 'customer' or 'cart'
 
     // Upsell Reminders
     const [upsellReminders, setUpsellReminders] = useState([DEFAULT_UPSELL_REMINDER]);
@@ -377,6 +380,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
     useEffect(() => {
         setCart([]);
         setOrderType('dine-in');
+        setSelectedTable('');
         setCustomizingItem(null);
         setWorkflowStep('cart');
         setCurrentCustomer(null);
@@ -384,46 +388,16 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
         setCustomerName('');
         setAppliedCoupon(null);
         setDiscount(0);
-        // Optionally reset category too
         setActiveCategory('All');
     }, [resetSignal]);
 
     // Polling for Scan & Order Remote Printing
     const isPollingRef = useRef(false);
 
-    // useEffect(() => {
-    //     // Polling removed to prevent continuous fetch errors. 
-    //     // Scan & Order printing should be triggered by specific events or manual refresh if needed.
-    //     //     const pollOrders = async () => {
-    //     //         if (isPollingRef.current) return;
-    //     //         isPollingRef.current = true;
-    //     //
-    //     //         try {
-    //     //             // Garbage collection logic...
-    //     //             
-    //     //             // 1. Check for Pending KOTs -> AUTO ACCEPT & PRINT
-    //     //             // Logic commented out to stop auto-print loop errors.
-    //     //             
-    //     //             // 2. Check for Bill Print Requests
-    //     //             // Logic commented out to stop auto-print loop errors.
-    //     //             
-    //     //         } catch (e) {
-    //     //             // console.warn("Polling checking...", e.message);
-    //     //         } finally {
-    //     //             isPollingRef.current = false;
-    //     //             // timeoutId = setTimeout(pollOrders, 5000); // 5s interval
-    //     //         }
-    //     //     };
-    //     //
-    //     //     // pollOrders();
-    //     //     return () => clearTimeout(timeoutId);
-    // }, [settings]);
-
     const handleAcceptOrder = async (order) => {
         if (!order || !order.id) return;
         processedIdsRef.current.add(order.id);
 
-        // Skip UI Incoming Orders state, directly print (Auto-mode)
         try {
             await handleRemotePrint(order, 'KOT');
         } catch (err) {
@@ -441,7 +415,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 const legacyKotPrinter = localStorage.getItem('pos_kot_printer_name') || localStorage.getItem('pos_printer_name');
                 const isRoutingEnabled = localStorage.getItem('pos_kitchen_routing_enabled') === 'true';
 
-                // Group items by station
                 const itemsByStation = {};
                 order.items.forEach(item => {
                     const station = item.Category?.station || 'Kitchen';
@@ -452,28 +425,22 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 const stations = Object.keys(itemsByStation);
 
                 if (isRoutingEnabled && Object.keys(stationMapping).length > 0 && stations.length > 0) {
-                    // Multi-printer Routing
                     for (const station of stations) {
-                        const printerName = stationMapping[station] || legacyKotPrinter; // Fallback to default if station not mapped
+                        const printerName = stationMapping[station] || legacyKotPrinter;
                         if (printerName) {
                             const stationItems = itemsByStation[station];
-                            // Create partial order for print
                             const partialOrder = { ...order, items: stationItems };
-                            const html = generateKotHtml(partialOrder); // Re-use existing generator
+                            const html = generateKotHtml(partialOrder);
                             await window.electronAPI.printBill({ printerName, htmlContent: html });
-                            console.log(`Printed KOT for Station: ${station} to ${printerName}`);
-                        } else {
-                            console.warn(`No printer found for station: ${station}`);
                         }
                     }
                 } else {
-                    // Legacy Mode (Single Printer)
                     if (legacyKotPrinter) {
                         const html = generateKotHtml(order);
                         await window.electronAPI.printBill({ printerName: legacyKotPrinter, htmlContent: html });
                     } else {
                         showNotification("No Printer Configured!", "error");
-                        return; // Exit if no printer
+                        return;
                     }
                 }
 
@@ -489,7 +456,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     let finalOrder = order;
                     let relatedOrders = [order];
 
-                    // Aggregation Logic (Final Bill with all KOTs)
                     if (order.tableNumber) {
                         try {
                             const res = await orderService.getAll({
@@ -498,11 +464,9 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                             });
 
                             if (res.data && res.data.length > 1) {
-                                // Filter orders that are NOT cancelled
                                 const validOrders = res.data.filter(o => o.status !== 'cancelled');
                                 relatedOrders = validOrders;
 
-                                // Aggregate
                                 const combinedItems = [];
                                 let totalAmount = 0, taxAmount = 0, subTotal = 0, roundOff = 0;
 
@@ -513,7 +477,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                     roundOff += Number(o.roundOff || 0);
 
                                     (o.items || []).forEach(item => {
-                                        // Simple merge by name + variant
                                         const existing = combinedItems.find(ci =>
                                             ci.itemName === item.itemName &&
                                             ci.variantName === item.variantName &&
@@ -545,7 +508,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     const html = generateBillHtml(finalOrder, settings);
                     await window.electronAPI.printBill({ printerName: billPrinter, htmlContent: html });
 
-                    // Clear flag for ALL related orders
                     for (const o of relatedOrders) {
                         if (o.printBillRequested) {
                             await orderService.update(o.id, { printBillRequested: false });
@@ -564,21 +526,28 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
         try {
             // LOCAL-FIRST: These calls read from local SQLite DB first
-            const [catRes, itemRes, settingsRes] = await Promise.all([
+            const [catRes, itemRes, settingsRes, outletRes, tablesRes] = await Promise.all([
                 menuService.getCategories(),
                 menuService.getItems(),
-                settingsService.getSettings()
+                settingsService.getSettings(),
+                outletService.getConfig().catch(() => ({ data: {} })),
+                configService.getTables().catch(() => ({ data: [] }))
             ]);
 
             // Transform categories
             const catData = Array.isArray(catRes.data) ? catRes.data : [];
-            const catNames = ['All', ...catData.map(c => c.name)];
-            setCategories(catNames);
+            const catObjs = [{ id: 'All', name: 'All' }, ...catData.map(c => ({ id: c.id, name: c.name }))];
+            setCategories(catObjs);
+            setActiveCategory(catObjs[0]); // Auto-select "All" category
 
             // Settings
             if (settingsRes.data) {
                 setSettings(settingsRes.data);
             }
+
+            // Outlet Config & Tables
+            if (outletRes.data) setOutletConfig(outletRes.data);
+            if (tablesRes.data) setTables(tablesRes.data);
 
             const itemData = Array.isArray(itemRes.data) ? itemRes.data : [];
 
@@ -590,11 +559,12 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 setIsOfflineMode(false);
                 setItems(itemData.map(i => {
                     // Merge Item-specific variants with Group Master variants
-                    const groupVariants = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
+                    // Merge Item-specific variants with Group Master variants
+                    const groupVars = i.variationGroups ? i.variationGroups.flatMap(g => g.Variants || []) : [];
                     const itemVariants = i.Variants || [];
 
                     const variantMap = new window.Map();
-                    groupVariants.forEach(v => variantMap.set(v.name, v));
+                    groupVars.forEach(v => variantMap.set(v.name, v));
                     itemVariants.forEach(v => variantMap.set(v.name, v));
 
                     const allVariants = Array.from(variantMap.values());
@@ -610,7 +580,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
             }
         } catch (error) {
             console.error("Failed to load data from local DB:", error);
-            showNotification("Error loading menu. Please try again.", "error");
+            showNotification(`Error loading menu: ${error.message}`, "error");
         } finally {
             setIsLoading(false);
         }
@@ -918,6 +888,9 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 customer: currentCustomer,
                 customerName: customerName || (currentCustomer?.customer?.name),
                 customerPhone: customerPhone,
+                customerName: customerName || (currentCustomer?.customer?.name),
+                customerPhone: customerPhone,
+                tableNumber: orderType === 'dine-in' ? selectedTable : null,
                 createdAt: new Date().toISOString()
             };
 
@@ -952,6 +925,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
         }
 
         setOrderType(order.type || 'dine-in');
+        if (order.tableNumber) setSelectedTable(order.tableNumber);
 
         // Remove from DB (consume it)
         if (window.electronAPI && order.id) {
@@ -999,7 +973,9 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 roundOff: roundOffValue,
                 subTotal: subtotal, // Add subtotal
                 containerCharge: containerCharge, // Add container charge
+                containerCharge: containerCharge, // Add container charge
                 type: orderType,
+                tableNumber: orderType === 'dine-in' ? selectedTable : null,
                 orderNumber: `ORD-${Date.now()}`,
 
                 // Payment Info
@@ -1114,9 +1090,15 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
         showNotification(`KOT Generated for ${orderType.toUpperCase()} Order!`, "success");
     };
 
-    const filteredItems = activeCategory === 'All'
-        ? items
-        : items.filter(i => (i.Category?.name || 'Uncategorized') === activeCategory); // Updated filter logic
+    const filteredItems = (activeCategory.id === 'none' || !activeCategory.id)
+        ? []
+        : activeCategory.id === 'All'
+            ? items
+            : items.filter(i => {
+                // Check direct match or string coercion match
+                const catId = i.categoryId || i.Category?.id;
+                return catId == activeCategory.id; // Loose equality for string/number mismatch
+            });
 
     return (
         <div className="flex h-full gap-6 p-6 overflow-hidden relative">
@@ -1124,7 +1106,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
             {isLoading && (
                 <div className="absolute inset-0 bg-gray-900/50 z-[300] flex items-center justify-center">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-12 h-12 border-4 border-[#444ce7] border-t-transparent rounded-full animate-spin"></div>
                         <p className="text-gray-700 dark:text-gray-300 font-medium">Loading Menu...</p>
                     </div>
                 </div>
@@ -1148,7 +1130,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
             {incomingOrders.length > 0 && (
                 <div className="absolute bottom-6 right-6 z-[200] space-y-3 flex flex-col items-end">
                     {incomingOrders.map(order => (
-                        <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-l-4 border-orange-500 w-80 overflow-hidden animate-in slide-in-from-right-10">
+                        <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-l-4 border-[#444ce7] w-80 overflow-hidden animate-in slide-in-from-right-10">
                             <div className="p-4">
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
@@ -1316,7 +1298,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     {settings.store_dinein_enabled !== 'false' && (
                         <button
                             onClick={() => setOrderType('dine-in')}
-                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'dine-in' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`flex-1 py-4 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${orderType === 'dine-in' ? 'bg-blue-50 text-[#444ce7] border-b-2 border-[#444ce7]' : 'text-gray-400 hover:bg-gray-50'}`}
                         >
                             <Utensils className="w-4 h-4" /> Dine-in
                         </button>
@@ -1324,7 +1306,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     {settings.store_delivery_enabled !== 'false' && (
                         <button
                             onClick={() => setOrderType('delivery')}
-                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'delivery' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`flex-1 py-4 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${orderType === 'delivery' ? 'bg-blue-50 text-[#444ce7] border-b-2 border-[#444ce7]' : 'text-gray-400 hover:bg-gray-50'}`}
                         >
                             <ShoppingBag className="w-4 h-4" /> Delivery
                         </button>
@@ -1332,12 +1314,12 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     {settings.store_takeaway_enabled !== 'false' && (
                         <button
                             onClick={() => setOrderType('takeaway')}
-                            className={`flex-1 py-4 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-colors ${orderType === 'takeaway' ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`flex-1 py-4 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${orderType === 'takeaway' ? 'bg-blue-50 text-[#444ce7] border-b-2 border-[#444ce7]' : 'text-gray-400 hover:bg-gray-50'}`}
                         >
                             <ChefHat className="w-4 h-4" /> Takeaway
                         </button>
                     )}
-                </div>
+                </div >
 
                 <div className="flex flex-1 overflow-hidden">
 
@@ -1345,15 +1327,15 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                     <div className="w-48 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 p-2 space-y-2">
                         {categories.map(cat => (
                             <button
-                                key={cat}
+                                key={cat.id}
                                 onClick={() => setActiveCategory(cat)}
-                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors shadow-md`}
                                 style={{
-                                    backgroundColor: activeCategory === cat ? 'var(--pos-cat-active)' : 'var(--pos-cat-btn)',
-                                    color: activeCategory === cat ? 'var(--pos-cat-active-text)' : 'inherit'
+                                    backgroundColor: activeCategory.id === cat.id ? '#444ce7' : '#f8f9fc',
+                                    color: activeCategory.id === cat.id ? '#ffffff' : '#64748b'
                                 }}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-sm border border-gray-100 ${activeCategory.id === cat.id ? 'scale-105 shadow-blue-200' : 'hover:bg-gray-100'}`}
                             >
-                                {cat}
+                                {cat.name}
                             </button>
                         ))}
                     </div>
@@ -1386,7 +1368,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                                         </>
                                     )}
                                     <h4 className="font-semibold text-center text-sm">{item.name}</h4>
-                                    <p className="font-bold mt-1 text-sm" style={{ color: 'var(--pos-cat-active)' }}>₹{item.price}</p>
+                                    <p className="font-bold mt-1 text-sm text-[#444ce7]">₹{item.price}</p>
                                     <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-orange-600">
                                         <Plus className="w-4 h-4" />
                                     </div>
@@ -1395,10 +1377,10 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Right Area (Customer Info or Cart) */}
-            <div className="w-80 flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden shrink-0">
+            < div className="w-80 flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden shrink-0" >
                 {workflowStep === 'customer' ? (
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col items-center text-center">
@@ -1492,6 +1474,29 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                             </span>
                         </div>
 
+                        {/* Table Selection for Dine-In */}
+                        {orderType === 'dine-in' && outletConfig.enableTables !== false && (
+                            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Select Table</label>
+                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                    {tables.length > 0 ? tables.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setSelectedTable(t.name)}
+                                            className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${selectedTable === t.name
+                                                ? 'bg-blue-600 text-white border-blue-600'
+                                                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                                                }`}
+                                        >
+                                            {t.name}
+                                        </button>
+                                    )) : (
+                                        <div className="text-xs text-gray-500 italic">No tables configured</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Cart Items - Takes most space */}
                         <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-900/50">
                             {cart.length === 0 ? (
@@ -1562,8 +1567,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
 
                                 <button
                                     onClick={initiateCheckout}
-                                    className="flex-[1.5] text-white flex items-center justify-center gap-3 hover:opacity-90 transition-all active:scale-95 group"
-                                    style={{ backgroundColor: 'var(--pos-btn-pay)', color: 'var(--pos-btn-text)' }}
+                                    className="flex-[1.5] text-white flex items-center justify-center gap-3 hover:bg-[#3538cd] transition-all active:scale-95 group font-bold bg-[#444ce7]"
                                 >
                                     <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <span className="text-sm font-black uppercase tracking-widest">Checkout</span>
@@ -1572,7 +1576,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                         </div>
                     </div>
                 )}
-            </div>
+            </div >
 
             <PaymentModal
                 isOpen={showPaymentModal}
@@ -1585,7 +1589,7 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 roundOff={roundOffValue}
                 orderType={orderType}
             />
-        </div>
+        </div >
     );
 }
 

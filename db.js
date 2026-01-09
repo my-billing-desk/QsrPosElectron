@@ -54,6 +54,12 @@ function initDb() {
             status TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            tenant_id TEXT
+        );
     `);
 
     try {
@@ -174,6 +180,36 @@ const getLocalMenu = (tenantId) => {
     return { categories, items };
 };
 
+// Settings Helpers
+const saveSettings = (settings, tenantId) => {
+    const insert = db.prepare('INSERT OR REPLACE INTO settings (key, value, tenant_id) VALUES (?, ?, ?)');
+    const transaction = db.transaction((settingsObj) => {
+        for (const [key, value] of Object.entries(settingsObj)) {
+            // value is usually string or number, if object stringify it? 
+            // The settings from backend usually come as { key: value }. 
+            // Wait, backend response is { settingKey: settingValue, ... }.
+            // Value in DB is TEXT.
+            const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            insert.run(key, valStr, tenantId);
+        }
+    });
+    transaction(settings);
+};
+
+const getSettings = (tenantId) => {
+    const rows = db.prepare('SELECT * FROM settings WHERE tenant_id = ?').all(tenantId);
+    const settings = {};
+    for (const row of rows) {
+        // Try to parse JSON if possible, else return string
+        try {
+            settings[row.key] = JSON.parse(row.value);
+        } catch {
+            settings[row.key] = row.value;
+        }
+    }
+    return settings;
+};
+
 const saveOrder = (order, status = 'queued') => {
     db.prepare('INSERT OR REPLACE INTO orders_offline (id, data, status) VALUES (?, ?, ?)').run(order.id || order._tempId, JSON.stringify(order), status);
 };
@@ -183,15 +219,33 @@ const markOrderSynced = (id) => db.prepare(`UPDATE orders_offline SET status = '
 const deleteLocalOrder = (id) => db.prepare('DELETE FROM orders_offline WHERE id = ?').run(id);
 const getAllLocalOrders = () => db.prepare(`SELECT * FROM orders_offline ORDER BY created_at DESC LIMIT 50`).all().map(r => ({ ...JSON.parse(r.data), status: r.status }));
 
+const clearLocalData = () => {
+    try {
+        db.prepare('DELETE FROM users').run();
+        db.prepare('DELETE FROM categories').run();
+        db.prepare('DELETE FROM items').run();
+        db.prepare('DELETE FROM orders_offline').run();
+        db.prepare('DELETE FROM settings').run();
+        console.log('[DB] All local data cleared.');
+        return true;
+    } catch (error) {
+        console.error('[DB] Failed to clear local data:', error);
+        return false;
+    }
+};
+
 module.exports = {
     initDb,
     saveUsers,
     verifyLocalLogin,
     syncMenu,
     getLocalMenu,
+    saveSettings,
+    getSettings,
     saveOrder,
     deleteLocalOrder,
     getQueuedOrders,
     markOrderSynced,
-    getAllLocalOrders
+    getAllLocalOrders,
+    clearLocalData
 };
