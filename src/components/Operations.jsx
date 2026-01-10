@@ -19,50 +19,11 @@ export function Operations({ onNavigate }) {
     };
 
     const modules = [
-        // Cash Management - Now integrated into grid
-        { id: 'cash_in', title: 'Cash In', icon: ArrowDownCircle, color: 'text-green-500', action: () => setCashMovementModal({ isOpen: true, type: 'cash_in' }) },
-        { id: 'cash_out', title: 'Cash Out', icon: ArrowUpCircle, color: 'text-red-500', action: () => setCashMovementModal({ isOpen: true, type: 'cash_out' }) },
-
-        // Regular operations
-        { id: 'orders', title: 'Orders', icon: FileText, color: 'text-gray-700' },
-        { id: 'online_orders', title: 'Online Orders', icon: Monitor, color: 'text-gray-700' },
-        { id: 'kots', title: 'KOTs', icon: ChefHat, color: 'text-gray-700' },
-        { id: 'customers', title: 'Customers', icon: Users, color: 'text-gray-700' },
-
-        { id: 'cash_flow', title: 'Cash Flow', icon: TrendingUp, color: 'text-gray-700' },
-        { id: 'expense', title: 'Expense', icon: Wallet, color: 'text-gray-700' },
-        { id: 'withdrawal', title: 'Withdrawal', icon: ArrowDownCircle, color: 'text-gray-700' },
-        { id: 'cash_topup', title: 'Cash Top-Up', icon: PlusCircle, color: 'text-gray-700' },
-
-        { id: 'inventory', title: 'Inventory', icon: Package, color: 'text-gray-700' },
-        { id: 'alerts', title: 'Alerts', icon: Bell, color: 'text-gray-700' },
-        { id: 'table', title: 'Table', icon: LayoutGrid, color: 'text-gray-700' },
-        { id: 'manual_sync', title: 'Manual Sync', icon: RefreshCw, color: 'text-gray-700' },
-
-        { id: 'help', title: 'Help', icon: HelpCircle, color: 'text-gray-700' },
-        { id: 'live_view', title: 'Live View', icon: Radio, color: 'text-gray-700' },
-        { id: 'due_payment', title: 'Due Payment', icon: CreditCard, color: 'text-gray-700' },
-        { id: 'language_profiles', title: 'Language Profiles', icon: Languages, color: 'text-gray-700' },
-
-        { id: 'billing_profile', title: 'Billing User Profile', icon: User, color: 'text-gray-700' },
-        { id: 'currency_conversion', title: 'Currency Conversion', icon: RefreshCw, color: 'text-gray-700' },
-        { id: 'feedback', title: 'Feedback', icon: MessageSquare, color: 'text-gray-700' },
-        { id: 'delivery_boys', title: 'Delivery Boys', icon: Truck, color: 'text-gray-700' },
-
-        { id: 'led_display', title: 'LED Display', icon: Tv, color: 'text-gray-700' },
-        { id: 'dual_screen', title: 'Dual Screen', icon: AppWindow, color: 'text-gray-700' },
+        // Operations are empty for now, to be added one by one
     ];
 
     const configModules = [
-        { id: 'menu_manage', title: 'Menu', icon: FileText, color: 'text-gray-700' },
-        { id: 'print_config', title: 'Bill / KOT Print', icon: Printer, color: 'text-gray-700' },
-        { id: 'tax_setup', title: 'Tax', icon: ScrollText, color: 'text-gray-700' },
-        { id: 'discount_setup', title: 'Discount', icon: Percent, color: 'text-gray-700' },
-        { id: 'billing_screen_setup', title: 'Billing Screen', icon: List, color: 'text-gray-700' },
-        { id: 'settings_setup', title: 'Settings', icon: Settings, color: 'text-gray-700' },
-        { id: 'item_on_off', title: 'Menu Item On Off', icon: ToggleRight, color: 'text-red-500', isHightlighted: true },
-        { id: 'service_renewal', title: 'Service Renewal', icon: RotateCcw, color: 'text-gray-700' },
-        { id: 'custom_status', title: 'Custom Order Status', icon: GitCommit, color: 'text-gray-700' },
+        { id: 'print_config', title: 'Outlet Configuration', icon: Settings, color: 'text-gray-700' },
     ];
 
     return (

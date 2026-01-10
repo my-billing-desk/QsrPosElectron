@@ -54,8 +54,7 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             id: 'pos_main',
             title: 'POS Operations',
             items: [
-                { id: 'operations', label: 'Operations', icon: LayoutDashboard },
-                { id: 'order_history', label: 'Order History', icon: FileText }
+                { id: 'operations', label: 'Operations', icon: LayoutDashboard }
             ]
         }
     ];

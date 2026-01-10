@@ -135,25 +135,12 @@ export function Header({ title, onToggleSidebar, onNavigate, onLogout, user }) {
                         )}
                     </div>
 
-                    <div className="flex flex-col items-center cursor-pointer hover:text-gray-900 group">
-                        <ToggleLeft className="w-6 h-6 mb-0.5 group-hover:text-blue-600" />
-                        <span className="text-[10px]">Item On/Off</span>
-                    </div>
-
                     <div
                         className="flex flex-col items-center cursor-pointer hover:text-gray-900 group"
                         onClick={() => onNavigate && onNavigate('operations')}
                     >
                         <Home className="w-6 h-6 mb-0.5 group-hover:text-blue-600" />
-                        <span className="text-[10px]">Store</span>
-                    </div>
-
-                    <div
-                        className="flex flex-col items-center cursor-pointer hover:text-gray-900 group"
-                        onClick={() => onNavigate && onNavigate('order_history')}
-                    >
-                        <FileText className="w-6 h-6 mb-0.5 group-hover:text-blue-600" />
-                        <span className="text-[10px]">Orders</span>
+                        <span className="text-[10px]">Operations</span>
                     </div>
 
                     <div

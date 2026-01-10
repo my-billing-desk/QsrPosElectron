@@ -70,8 +70,8 @@ export function Settings() {
         <div className="p-6 max-w-4xl mx-auto h-full overflow-y-auto">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <Printer className="w-6 h-6 text-orange-600" />
-                    Print Configuration
+                    <Settings className="w-6 h-6 text-orange-600" />
+                    Outlet Configuration
                 </h2>
 
                 <div className="space-y-6">

@@ -1,5 +1,5 @@
 {
-    "name": "qsr-pos-electron",
+    "name": "aksha-pos",
     "private": true,
     "version": "0.1.0",
     "main": "app.js",
@@ -12,8 +12,8 @@
         "web": "vite --port 5569"
     },
     "build": {
-        "appId": "com.qsr.pos",
-        "productName": "QSR POS",
+        "appId": "com.aksha.pos",
+        "productName": "Aksha POS",
         "mac": {
             "target": "dmg"
         },
