@@ -4,7 +4,7 @@
     "version": "0.1.0",
     "main": "app.js",
     "scripts": {
-        "dev": "concurrently \"npx vite --port 5569\" \"npx wait-on tcp:5569 && npx electron .\"",
+        "dev": "concurrently \"npx vite --port 5569\" \"npx wait-on tcp:5569 && ELECTRON_RUN_AS_NODE= npx electron .\"",
         "build": "vite build",
         "pack": "electron-builder --dir",
         "dist": "vite build && electron-builder",
@@ -22,7 +22,12 @@
         },
         "linux": {
             "target": "AppImage"
-        }
+        },
+        "files": [
+            "**/*",
+            "dist/**/*",
+            "!src"
+        ]
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

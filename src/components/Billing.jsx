@@ -888,8 +888,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 customer: currentCustomer,
                 customerName: customerName || (currentCustomer?.customer?.name),
                 customerPhone: customerPhone,
-                customerName: customerName || (currentCustomer?.customer?.name),
-                customerPhone: customerPhone,
                 tableNumber: orderType === 'dine-in' ? selectedTable : null,
                 createdAt: new Date().toISOString()
             };
@@ -972,7 +970,6 @@ export function Billing({ resetSignal, restoredOrder, onOrderRestored }) {
                 taxAmount: taxAmount,
                 roundOff: roundOffValue,
                 subTotal: subtotal, // Add subtotal
-                containerCharge: containerCharge, // Add container charge
                 containerCharge: containerCharge, // Add container charge
                 type: orderType,
                 tableNumber: orderType === 'dine-in' ? selectedTable : null,

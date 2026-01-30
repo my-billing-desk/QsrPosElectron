@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, X, Plus, Trash2, Check, ChevronDown, GripVertical } from 'lucide-react';
-import { menuService, groupService } from '../services/api';
+import { menuService, groupService } from '../services/api'; // Ensure these are exported correctly
 import toast from 'react-hot-toast';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Helper Sortable Row
 function SortableVariantRow({ id, index, variant, handleVariantChange, removeVariant }) {
     const {
         attributes,
@@ -33,7 +34,7 @@ function SortableVariantRow({ id, index, variant, handleVariantChange, removeVar
             </td>
             <td className="p-3">
                 <input
-                    value={variant.name}
+                    value={variant?.name || ''}
                     onChange={e => handleVariantChange(index, 'name', e.target.value)}
                     className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none text-sm font-medium text-gray-800 dark:text-gray-200 placeholder-gray-400"
                     placeholder="e.g. Small"
@@ -44,7 +45,7 @@ function SortableVariantRow({ id, index, variant, handleVariantChange, removeVar
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">₹</span>
                     <input
                         type="number"
-                        value={variant.price}
+                        value={variant?.price || ''}
                         onChange={e => handleVariantChange(index, 'price', e.target.value)}
                         className="w-full pl-7 pr-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-md text-sm font-bold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                         placeholder="0.00"
@@ -73,21 +74,19 @@ export function AddItem({ onBack, itemToEdit }) {
         categoryId: '',
         description: '',
         isVeg: true,
-        goodsServices: 'Goods', // GST Type
+        goodsServices: 'Goods',
         orderDelivery: true,
         orderTakeAway: true,
         orderDineIn: true,
-        isAvailable: true, // Online Expose
+        isAvailable: true,
         availableOndc: true,
-        ondcTags: {
-            veg_nonveg: 'veg'
-        },
+        ondcTags: { veg_nonveg: 'veg' },
         image: null,
         imagePreview: null,
         showImage: false,
         variants: [], // { _key, name, price }
-        addonGroupIds: [], // Currently single select in UI but backend supports array
-        itemVariationGroups: [] // New field for Variation Groups selection
+        addonGroupIds: [],
+        itemVariationGroups: []
     });
 
     const [categories, setCategories] = useState([]);
@@ -97,7 +96,7 @@ export function AddItem({ onBack, itemToEdit }) {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Dnd Sensors
+    // Dnd Sensors with Activation Constraint to prevent click blocking
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -110,51 +109,77 @@ export function AddItem({ onBack, itemToEdit }) {
     );
 
     useEffect(() => {
-        loadData();
-        if (itemToEdit) {
-            setFormData({
-                name: itemToEdit.name,
-                shortCode: itemToEdit.shortCode || '',
-                onlineName: itemToEdit.onlineName || '',
-                price: itemToEdit.price,
-                categoryId: itemToEdit.categoryId,
-                description: itemToEdit.description || '',
-                isVeg: itemToEdit.isVeg,
-                goodsServices: itemToEdit.goodsServices || 'Goods',
-                orderDelivery: itemToEdit.orderDelivery,
-                orderTakeAway: itemToEdit.orderTakeAway,
-                orderDineIn: itemToEdit.orderDineIn,
-                isAvailable: itemToEdit.isAvailable,
-                image: null, // New file upload is null
-                imagePreview: itemToEdit.image ? `http://localhost:5001${itemToEdit.image}` : null, // Prepend backend URL if relative
-                showImage: itemToEdit.showImage === true || itemToEdit.showImage === 1,
-                variants: itemToEdit.Variants ? itemToEdit.Variants.map(v => ({
-                    _key: Math.random().toString(36).substr(2, 9),
-                    name: v.name,
-                    price: v.price
-                })) : [],
-                addonGroupIds: itemToEdit.addonGroups ? itemToEdit.addonGroups.map(g => g.id) : [],
-                itemVariationGroups: itemToEdit.variationGroups ? itemToEdit.variationGroups.map(vg => vg.id) : [],
-                availableOndc: itemToEdit.availableOndc !== false, // default true
-                ondcTags: itemToEdit.ondcTags || { veg_nonveg: itemToEdit.isVeg ? 'veg' : 'non_veg' }
-            });
-        }
-    }, [itemToEdit]); // Re-run if itemToEdit changes
+        // Safe Load Data
+        const fetchData = async () => {
+            try {
+                // We use parallel fetching but handle failures gracefully
+                const [catRes, groupRes, varRes] = await Promise.allSettled([
+                    menuService.getCategories(),
+                    groupService.getAddonGroups(),
+                    groupService.getVariationGroups()
+                ]);
 
-    const loadData = async () => {
-        try {
-            const [catRes, groupRes, varRes] = await Promise.all([
-                menuService.getCategories(),
-                groupService.getAddonGroups(),
-                groupService.getVariationGroups()
-            ]);
-            setCategories(catRes.data);
-            setAddonGroups(groupRes.data);
-            setVariationGroups(varRes.data);
-        } catch (error) {
-            console.error(error);
+                if (catRes.status === 'fulfilled' && catRes.value?.data) {
+                    setCategories(catRes.value.data);
+                } else {
+                    console.error("Failed to load categories:", catRes.reason);
+                }
+
+                if (groupRes.status === 'fulfilled' && groupRes.value?.data) {
+                    setAddonGroups(groupRes.value.data);
+                } else {
+                    console.error("Failed to load addon groups:", groupRes.reason);
+                }
+
+                if (varRes.status === 'fulfilled' && varRes.value?.data) {
+                    setVariationGroups(varRes.value.data);
+                } else {
+                    console.error("Failed to load variation groups:", varRes.reason);
+                }
+
+            } catch (error) {
+                console.error("Critical error loading item data:", error);
+                toast.error("Failed to load some data. Please check connection.");
+            }
+        };
+
+        fetchData();
+
+        // Initialize Form Data
+        if (itemToEdit) {
+            try {
+                setFormData({
+                    name: itemToEdit.name || '',
+                    shortCode: itemToEdit.shortCode || '',
+                    onlineName: itemToEdit.onlineName || '',
+                    price: itemToEdit.price || '',
+                    categoryId: itemToEdit.categoryId || '',
+                    description: itemToEdit.description || '',
+                    isVeg: itemToEdit.isVeg !== false, // default true if undefined
+                    goodsServices: itemToEdit.goodsServices || 'Goods',
+                    orderDelivery: itemToEdit.orderDelivery !== false,
+                    orderTakeAway: itemToEdit.orderTakeAway !== false,
+                    orderDineIn: itemToEdit.orderDineIn !== false,
+                    isAvailable: itemToEdit.isAvailable !== false,
+                    image: null,
+                    imagePreview: itemToEdit.image ? `http://localhost:5001${itemToEdit.image}` : null,
+                    showImage: itemToEdit.showImage === true || itemToEdit.showImage === 1,
+                    variants: (itemToEdit.Variants || []).map(v => ({
+                        _key: Math.random().toString(36).substr(2, 9),
+                        name: v.name || '',
+                        price: v.price || ''
+                    })),
+                    addonGroupIds: (itemToEdit.addonGroups || []).map(g => g.id),
+                    itemVariationGroups: (itemToEdit.variationGroups || []).map(vg => vg.id),
+                    availableOndc: itemToEdit.availableOndc !== false,
+                    ondcTags: itemToEdit.ondcTags || { veg_nonveg: itemToEdit.isVeg ? 'veg' : 'non_veg' }
+                });
+            } catch (err) {
+                console.error("Error parsing item data:", err);
+                toast.error("Error loading item details.");
+            }
         }
-    };
+    }, [itemToEdit]);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -166,8 +191,10 @@ export function AddItem({ onBack, itemToEdit }) {
 
     const handleVariantChange = (index, field, value) => {
         const newVariants = [...formData.variants];
-        newVariants[index][field] = value;
-        setFormData(prev => ({ ...prev, variants: newVariants }));
+        if (newVariants[index]) {
+            newVariants[index][field] = value;
+            setFormData(prev => ({ ...prev, variants: newVariants }));
+        }
     };
 
     const addVariant = () => {
@@ -211,48 +238,55 @@ export function AddItem({ onBack, itemToEdit }) {
         try {
             setLoading(true);
             const data = new FormData();
-            data.append('name', formData.name);
-            data.append('shortCode', formData.shortCode);
-            data.append('onlineName', formData.onlineName);
-            data.append('price', formData.price);
-            data.append('categoryId', formData.categoryId);
-            data.append('description', formData.description);
-            data.append('isVeg', formData.isVeg);
-            data.append('goodsServices', formData.goodsServices);
-            data.append('orderDelivery', formData.orderDelivery);
-            data.append('orderTakeAway', formData.orderTakeAway);
-            data.append('orderDineIn', formData.orderDineIn);
-            data.append('isAvailable', formData.isAvailable);
-            data.append('availableOndc', formData.availableOndc);
-            data.append('showImage', formData.showImage);
-            data.append('ondcTags', JSON.stringify(formData.ondcTags));
+            // Append basic fields, checking for null/undefined
+            const append = (key, val) => data.append(key, val === null || val === undefined ? '' : val);
+
+            append('name', formData.name);
+            append('shortCode', formData.shortCode);
+            append('onlineName', formData.onlineName);
+            append('price', formData.price);
+            append('categoryId', formData.categoryId);
+            append('description', formData.description);
+            append('isVeg', formData.isVeg);
+            append('goodsServices', formData.goodsServices);
+            append('orderDelivery', formData.orderDelivery);
+            append('orderTakeAway', formData.orderTakeAway);
+            append('orderDineIn', formData.orderDineIn);
+            append('isAvailable', formData.isAvailable);
+            append('availableOndc', formData.availableOndc);
+            append('showImage', formData.showImage);
+            append('ondcTags', JSON.stringify(formData.ondcTags || {}));
 
             if (formData.image instanceof File) {
                 data.append('image', formData.image);
             }
 
-            // Complex objects as strings
-            data.append('variants', JSON.stringify(formData.variants.map((v, i) => ({
+            // Variants
+            const variantsData = formData.variants.map((v, i) => ({
                 name: v.name,
-                price: v.price,
+                price: v.price || 0,
                 sortOrder: i
-            }))));
+            }));
+            data.append('variants', JSON.stringify(variantsData));
 
-            data.append('addonGroupIds', JSON.stringify(formData.addonGroupIds.filter(id => id)));
+            // Associations
+            data.append('addonGroupIds', JSON.stringify(formData.addonGroupIds));
             data.append('variationGroupIds', JSON.stringify(formData.itemVariationGroups));
 
-            // menuService update needs to handle FormData correctly (content-type usually automatic with fetch/axios if body is FormData)
-            if (itemToEdit) {
+            if (itemToEdit && itemToEdit.id) {
                 await menuService.updateItem(itemToEdit.id, data);
+                toast.success('Item updated successfully');
             } else {
                 await menuService.createItem(data);
+                toast.success('Item created successfully');
             }
 
             setLoading(false);
             onBack();
         } catch (error) {
+            console.error("Save Error:", error);
             setLoading(false);
-            toast.error('Failed to save item: ' + error.message);
+            toast.error('Failed to save item: ' + (error.response?.data?.error || error.message));
         }
     };
 
@@ -260,18 +294,24 @@ export function AddItem({ onBack, itemToEdit }) {
         if (!newCategoryName.trim()) return;
         try {
             const res = await menuService.createCategory({ name: newCategoryName });
-            const catRes = await menuService.getCategories();
-            setCategories(catRes.data);
-            setFormData(prev => ({ ...prev, categoryId: res.data.id }));
-            setShowNewCategoryInput(false);
-            toast.success("Category created successfully");
+            if (res.data) {
+                setCategories(prev => [...prev, res.data]);
+                setFormData(prev => ({ ...prev, categoryId: res.data.id }));
+                setShowNewCategoryInput(false);
+                toast.success("Category created successfully");
+            }
         } catch (err) {
             toast.error("Failed to create category");
         }
     };
 
+    // Safe render for groups
+    const safeVariationGroups = Array.isArray(variationGroups) ? variationGroups : [];
+    const safeAddonGroups = Array.isArray(addonGroups) ? addonGroups : [];
+    const safeCategories = Array.isArray(categories) ? categories : [];
+
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 absolute inset-0 z-20">
             {/* Header */}
             <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-4">
@@ -279,12 +319,13 @@ export function AddItem({ onBack, itemToEdit }) {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <div className="text-xs text-gray-500">Menu Management - Add Item</div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{formData.name || 'New Item'}</h1>
+                        <div className="text-xs text-gray-500">Menu Management - {itemToEdit ? 'Edit Item' : 'Add Item'}</div>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{formData.name || (itemToEdit ? 'Edit Item' : 'New Item')}</h1>
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={handleSubmit} disabled={loading} className="px-6 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 shadow-sm disabled:opacity-50">
+                    <button onClick={handleSubmit} disabled={loading} className="px-6 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 shadow-sm disabled:opacity-50 flex items-center gap-2">
+                        <Save className="w-4 h-4" />
                         {loading ? 'Saving...' : 'Save & Exit'}
                     </button>
                 </div>
@@ -298,19 +339,19 @@ export function AddItem({ onBack, itemToEdit }) {
                     <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <div className="grid grid-cols-12 gap-6">
                             {/* Row 1 */}
-                            <div className="col-span-3">
+                            <div className="col-span-12 md:col-span-3">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Name *</label>
                                 <input name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded bg-blue-50/30 border-blue-200 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Item Name" />
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-12 md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Short Code *</label>
                                 <input name="shortCode" value={formData.shortCode} onChange={handleInputChange} className="w-full p-2 border rounded focus:ring-1 focus:ring-gray-300 outline-none" placeholder="Code" />
                             </div>
-                            <div className="col-span-3">
+                            <div className="col-span-12 md:col-span-3">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Online Display Name</label>
                                 <input name="onlineName" value={formData.onlineName} onChange={handleInputChange} className="w-full p-2 border rounded focus:ring-1 focus:ring-gray-300 outline-none" placeholder="Display Name" />
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-12 md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Category *</label>
                                 <select
                                     name="categoryId"
@@ -322,25 +363,25 @@ export function AddItem({ onBack, itemToEdit }) {
                                     className="w-full p-2 border rounded bg-white outline-none"
                                 >
                                     <option value="">Select Category</option>
-                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     <option value="new" className="text-blue-600 font-bold">+ New Category</option>
                                 </select>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-12 md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Price *</label>
                                 <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full p-2 border rounded focus:ring-1 focus:ring-gray-300 outline-none" placeholder="0" />
                             </div>
 
                             {/* Row 2 */}
-                            <div className="col-span-3">
+                            <div className="col-span-12 md:col-span-3">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Description</label>
                                 <input name="description" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded focus:ring-1 focus:ring-gray-300 outline-none" />
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-6 md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">Dietary</label>
                                 <select
                                     name="isVeg"
-                                    value={formData.isVeg}
+                                    value={formData.isVeg.toString()}
                                     onChange={e => setFormData({ ...formData, isVeg: e.target.value === 'true' })}
                                     className="w-full p-2 border rounded bg-white outline-none"
                                 >
@@ -348,7 +389,7 @@ export function AddItem({ onBack, itemToEdit }) {
                                     <option value="false">Non-Veg</option>
                                 </select>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-6 md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-700 mb-1">GST Type</label>
                                 <select name="goodsServices" value={formData.goodsServices} onChange={handleInputChange} className="w-full p-2 border rounded bg-white outline-none">
                                     <option value="Goods">Goods</option>
@@ -357,7 +398,7 @@ export function AddItem({ onBack, itemToEdit }) {
                             </div>
 
                             {/* Order Types */}
-                            <div className="col-span-5">
+                            <div className="col-span-12 md:col-span-5">
                                 <label className="block text-xs font-bold text-gray-700 mb-2">Order Type</label>
                                 <div className="space-y-1">
                                     {[
@@ -376,11 +417,9 @@ export function AddItem({ onBack, itemToEdit }) {
                                     ))}
                                 </div>
                             </div>
-
-
                         </div>
 
-                        {/* Compact Image Upload Row */}
+                        {/* Image Upload */}
                         <div className="col-span-12 border-t border-gray-100 pt-3 mt-2">
                             <div className="flex items-center gap-4">
                                 <label className="flex flex-col items-center justify-center w-20 h-20 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-white">
@@ -431,7 +470,6 @@ export function AddItem({ onBack, itemToEdit }) {
                                             <Trash2 className="w-3 h-3" /> Remove Image
                                         </button>
                                     )}
-                                    <p className="text-[10px] text-gray-400">Max size: 5MB (JPG/PNG)</p>
                                 </div>
                             </div>
                         </div>
@@ -441,7 +479,7 @@ export function AddItem({ onBack, itemToEdit }) {
                     <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Variation Groups</label>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {variationGroups.map(group => (
+                            {safeVariationGroups.length > 0 ? safeVariationGroups.map(group => (
                                 <label key={group.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${formData.itemVariationGroups?.includes(group.id)
                                     ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
                                     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-blue-300'
@@ -468,69 +506,27 @@ export function AddItem({ onBack, itemToEdit }) {
                                         <div className="text-xs text-gray-500">{group.departmentName}</div>
                                     </div>
                                 </label>
-
-                            ))}
+                            )) : (
+                                <div className="col-span-full text-xs text-gray-400">No variation groups found.</div>
+                            )}
                         </div>
 
-                        {/* Item Specific Variations & Custom Overrides */}
-                        <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase">Custom Variations & Price Overrides</h3>
-                                    <p className="text-xs text-gray-500">Add custom variants or import from groups to override prices for this item.</p>
-                                </div>
-                            </div>
+                        {/* Custom Variants */}
+                        <div className="mt-6 bg-gray-50/50 rounded border border-gray-200 p-4">
+                            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase mb-4">Custom Variations</h3>
 
-                            {/* Helper: Import from Selected Groups */}
-                            {formData.itemVariationGroups && formData.itemVariationGroups.length > 0 && (
-                                <div className="mb-4 flex flex-wrap gap-2">
-                                    {formData.itemVariationGroups.map(groupId => {
-                                        const group = variationGroups.find(g => g.id === groupId);
-                                        if (!group) return null;
-                                        return (
-                                            <button
-                                                key={group.id}
-                                                onClick={() => {
-                                                    // Add variants from this group to the list
-                                                    const newVariants = [...formData.variants];
-                                                    if (group.Variants && group.Variants.length > 0) {
-                                                        group.Variants.forEach(gv => {
-                                                            // Avoid duplicates by name? Or allow duplicates? 
-                                                            // Best to check if name exists, if so, maybe don't add or warn?
-                                                            // Let's just add them, user can delete.
-                                                            newVariants.push({
-                                                                _key: Math.random().toString(36).substr(2, 9),
-                                                                name: gv.name,
-                                                                price: gv.price || ''
-                                                            });
-                                                        });
-                                                        setFormData(prev => ({ ...prev, variants: newVariants }));
-                                                    } else {
-                                                        toast.error("No master variants found in this group.");
-                                                    }
-                                                }}
-                                                className="text-xs flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors"
-                                            >
-                                                <Plus className="w-3 h-3" /> Import {group.name} Options
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Table */}
-                            <div className="border rounded-lg overflow-hidden">
+                            <div className="border rounded-lg overflow-hidden bg-white">
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                     <table className="w-full text-left">
-                                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
                                             <tr>
-                                                <th className="p-3 pl-4 w-12 text-center">#</th>
+                                                <th className="p-3 w-10">#</th>
                                                 <th className="p-3">Variation Name</th>
                                                 <th className="p-3 w-48">Price (₹)</th>
                                                 <th className="p-3 w-20 text-center">Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        <tbody className="divide-y divide-gray-100">
                                             <SortableContext items={formData.variants.map(v => v._key)} strategy={verticalListSortingStrategy}>
                                                 {formData.variants.map((variant, index) => (
                                                     <SortableVariantRow
@@ -546,77 +542,61 @@ export function AddItem({ onBack, itemToEdit }) {
                                         </tbody>
                                     </table>
                                 </DndContext>
-
                                 {formData.variants.length === 0 && (
-                                    <div className="text-center py-6 text-gray-400 text-sm">
-                                        No custom variations added.
-                                    </div>
+                                    <div className="text-center py-6 text-gray-400 text-sm">No custom variations added.</div>
                                 )}
                             </div>
 
                             <div className="mt-4 flex justify-end">
-                                <button
-                                    onClick={addVariant}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all shadow-sm"
-                                >
-                                    <Plus className="w-4 h-4 text-blue-500" />
-                                    <span>Add Empty Row</span>
+                                <button onClick={addVariant} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">
+                                    <Plus className="w-4 h-4 text-blue-500" /> API Add Empty Row
                                 </button>
-                            </div>
-
-                            {/* Addon Group */}
-                            <div className="bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                                <select
-                                    className="w-full p-2 border rounded bg-white text-gray-700 outline-none"
-                                    value={formData.addonGroupIds[0] || ''} // Handle single select for now as per UI
-                                    onChange={(e) => setFormData(p => ({ ...p, addonGroupIds: [e.target.value] }))}
-                                >
-                                    <option value="">Select AddonGroup</option>
-                                    {addonGroups.map(g => (
-                                        <option key={g.id} value={g.id}>{g.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Footer Checkbox */}
-                            <div className="flex items-start gap-2 p-2">
-                                <input type="checkbox" className="mt-1 w-4 h-4 text-red-600 rounded" />
-                                <div>
-                                    <div className="text-sm font-medium text-gray-800">Create Self Item Recipe</div>
-                                    <div className="text-xs text-blue-500">Applicable only when menu item is Purchased but does not have any recipe. After setting this option you can not revert it back.</div>
-                                </div>
-
                             </div>
                         </div>
 
+                        {/* Addon Group */}
+                        <div className="mt-6">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Addon Group</label>
+                            <select
+                                className="w-full p-2 border rounded bg-white text-gray-700 outline-none"
+                                value={formData.addonGroupIds[0] || ''}
+                                onChange={(e) => setFormData(p => ({ ...p, addonGroupIds: [e.target.value] }))}
+                            >
+                                <option value="">Select Addon Group</option>
+                                {safeAddonGroups.map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
-
-                        {/* New Category Modal */}
-                        {showNewCategoryInput && (
-                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-96 p-6">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-bold">Create New Category</h3>
-                                        <button onClick={() => setShowNewCategoryInput(false)}><X className="w-4 h-4" /></button>
-                                    </div>
-                                    <input
-                                        autoFocus
-                                        value={newCategoryName}
-                                        onChange={(e) => setNewCategoryName(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
-                                        className="w-full p-2 border rounded mb-4"
-                                        placeholder="Category Name"
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                        <button onClick={() => setShowNewCategoryInput(false)} className="px-3 py-1 text-gray-600">Cancel</button>
-                                        <button onClick={handleCreateCategory} className="px-3 py-1 bg-blue-600 text-white rounded">Create</button>
-                                    </div>
+                    {/* New Category Modal */}
+                    {showNewCategoryInput && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-96 p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold">Create New Category</h3>
+                                    <button onClick={() => setShowNewCategoryInput(false)}><X className="w-4 h-4" /></button>
+                                </div>
+                                <input
+                                    autoFocus
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+                                    className="w-full p-2 border rounded mb-4"
+                                    placeholder="Category Name"
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => setShowNewCategoryInput(false)} className="px-3 py-1 text-gray-600">Cancel</button>
+                                    <button onClick={handleCreateCategory} className="px-3 py-1 bg-blue-600 text-white rounded">Create</button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
+
+export default AddItem;

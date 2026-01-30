@@ -28,8 +28,6 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
         'stock_transfer': [19],
         'wastage': [18],
         'inventory_reports': [10],
-        'inventory_reports': [10],
-        'stock_summary': [10],
         'print_config': [30, 140],
         'menu_management': [30, 140] // Assuming admin permissions for now
     };
@@ -58,7 +56,6 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             title: 'POS Operations',
             items: [
                 { id: 'operations', label: 'Operations', icon: LayoutDashboard },
-                { id: 'print_config', label: 'Outlet Configuration', icon: Printer },
                 { id: 'menu_management', label: 'Menu Management', icon: ChefHat }
             ]
         }

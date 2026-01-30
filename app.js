@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('fs');
 const util = require('util');
 
-const logPath = path.join(__dirname, 'electron_debug.log');
+const logPath = path.join(app.getPath('userData'), 'electron_debug.log');
 
 function logToFile(...args) {
     const timestamp = new Date().toISOString();
@@ -38,9 +38,17 @@ function createWindow() {
 
     if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
         mainWindow.loadURL('http://localhost:5569').catch(e => logToFile('Failed to load URL, is Vite running?'));
-        // mainWindow.webContents.openDevTools();
+        mainWindow.webContents.openDevTools();
     } else {
-        mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+        mainWindow.loadFile(path.join(__dirname, 'dist/index.html'))
+            .catch(e => logToFile('Failed to load index.html', e));
+
+        // Setup console logging from renderer to main log file
+        mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+            logToFile(`[RENDERER] ${message} (${sourceId}:${line})`);
+        });
+
+        mainWindow.webContents.openDevTools(); // Temporary for debugging
     }
 }
 

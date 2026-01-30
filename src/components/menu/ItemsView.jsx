@@ -73,6 +73,7 @@ function SortableCategorySidebarItem({ id, category, selectedCategory, onClick }
 }
 
 export function ItemsView() {
+    // 1. All Hooks First (useState, useSensor, useEffect)
     const [view, setView] = useState('list');
     const [categories, setCategories] = useState([]);
     const [items, setItems] = useState([]);
@@ -85,7 +86,13 @@ export function ItemsView() {
     const [areaPriceItem, setAreaPriceItem] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    // Dnd Sensors (Use activationConstraint to allow clicks)
+    const [activeDropdown, setActiveDropdown] = useState(null); // 'action', 'quickAction', etc.
+    const [actionSearch, setActionSearch] = useState('');
+    const [quickActionSearch, setQuickActionSearch] = useState('');
+
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+    // Dnd Sensors
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -97,10 +104,22 @@ export function ItemsView() {
         })
     );
 
+    // Effects
     useEffect(() => {
         loadData();
     }, []);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setActiveDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Handlers
     const loadData = async () => {
         try {
             const [catRes, itemRes] = await Promise.all([
@@ -113,8 +132,6 @@ export function ItemsView() {
             console.error("Failed to load data", error);
         }
     };
-
-    const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const handleDeleteClick = (id) => {
         setDeleteConfirm(id);
@@ -157,12 +174,6 @@ export function ItemsView() {
 
         if (active.id !== over.id) {
             setCategories((cats) => {
-                // IDs are strings 'cat-X', need to find index
-                // Actually if I use 'cat-X' as id in useSortable, active.id is 'cat-X'.
-                // But my categories state has numeric IDs usually.
-                // I need to map properly.
-                // Let's assume I pass the whole string ID to useSortable.
-
                 const oldIndex = cats.findIndex((c) => `cat-${c.id}` === active.id);
                 const newIndex = cats.findIndex((c) => `cat-${c.id}` === over.id);
 
@@ -182,10 +193,7 @@ export function ItemsView() {
         }
     };
 
-    if (view === 'add') {
-        return <AddItem itemToEdit={editingItem} onBack={() => { setView('list'); setEditingItem(null); loadData(); }} />;
-    }
-
+    // 2. Computed Values
     const filteredCategories = categories.filter(c =>
         c.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
     );
@@ -197,21 +205,32 @@ export function ItemsView() {
         return matchesCategory && matchesSearch;
     });
 
-    const [activeDropdown, setActiveDropdown] = useState(null); // 'action', 'quickAction', etc.
-    const [actionSearch, setActionSearch] = useState('');
-    const [quickActionSearch, setQuickActionSearch] = useState('');
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setActiveDropdown(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     const actionItems = [
+        { label: 'Available', onClick: () => console.log('Available') },
+        { label: 'Update Online Availability', onClick: () => console.log('Update Online Availability') },
+        // ... (keep short for brevity in replace, rest is same logical content)
+    ];
+
+    const quickActionItems = [
+        { label: 'Generate Barcode', onClick: () => console.log('Generate Barcode') },
+        // ...
+    ];
+
+    // Filter action items
+    const filteredActions = actionItems.filter(item => item.label.toLowerCase().includes(actionSearch.toLowerCase()));
+
+    // THIS IS TRICKY: quickActionItems was defined inline before.
+    // I need to ensure I don't break the filters.
+    // Actually, just returning the UI.
+
+    // 3. Conditional Returns
+    if (view === 'add') {
+        return <AddItem itemToEdit={editingItem} onBack={() => { setView('list'); setEditingItem(null); loadData(); }} />;
+    }
+
+    // 4. Main Render
+    // (Re-declaring action lists here to ensure they are available for render)
+    const fullActionItems = [
         { label: 'Available', onClick: () => console.log('Available') },
         { label: 'Update Online Availability', onClick: () => console.log('Update Online Availability') },
         { label: 'Active/Inactive Areas', onClick: () => console.log('Active/Inactive Areas') },
@@ -250,7 +269,7 @@ export function ItemsView() {
         { label: 'Remove Variation(s)', onClick: () => console.log('Remove Variation(s)') },
     ];
 
-    const quickActionItems = [
+    const fullQuickActionItems = [
         { label: 'Generate Barcode', onClick: () => console.log('Generate Barcode') },
         { label: 'Update Base Menu', onClick: () => console.log('Update Base Menu') },
         { label: 'Update Item Rank/Order', onClick: () => console.log('Update Item Rank/Order') },
@@ -264,8 +283,8 @@ export function ItemsView() {
         { label: 'Replace Item Variation(s)', onClick: () => console.log('Replace Item Variation(s)') },
     ];
 
-    const filteredActions = actionItems.filter(item => item.label.toLowerCase().includes(actionSearch.toLowerCase()));
-    const filteredQuickActions = quickActionItems.filter(item => item.label.toLowerCase().includes(quickActionSearch.toLowerCase()));
+    const actualFilteredActions = fullActionItems.filter(item => item.label.toLowerCase().includes(actionSearch.toLowerCase()));
+    const actualFilteredQuickActions = fullQuickActionItems.filter(item => item.label.toLowerCase().includes(quickActionSearch.toLowerCase()));
 
     return (
         <div className="flex flex-1 overflow-hidden h-[calc(100vh-140px)] bg-gray-50 dark:bg-gray-900">
@@ -373,7 +392,7 @@ export function ItemsView() {
                                             autoFocus
                                         />
                                     </div>
-                                    {filteredActions.map((item, idx) => (
+                                    {actualFilteredActions.map((item, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => { item.onClick(); setActiveDropdown(null); }}
@@ -406,7 +425,7 @@ export function ItemsView() {
                                             autoFocus
                                         />
                                     </div>
-                                    {filteredQuickActions.map((item, idx) => (
+                                    {actualFilteredQuickActions.map((item, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => { item.onClick(); setActiveDropdown(null); }}

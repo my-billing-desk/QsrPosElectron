@@ -23,7 +23,7 @@ const ClosingStock = React.lazy(() => import('./components/PosInventoryModules')
 const StockTransfer = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockTransfer })));
 const Wastage = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.Wastage })));
 const InventoryReports = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.InventoryReports })));
-const StockSummary = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockSummary })));
+// const StockSummary = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.StockSummary })));
 const PurchaseReturn = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: module.PurchaseReturn })));
 
 // import { useOnlineOrders } from './hooks/useOnlineOrders'; // Disabled auto-polling
@@ -156,14 +156,14 @@ function AppContent() {
                         {activeTab === 'stock_transfer' && <StockTransfer />}
                         {activeTab === 'wastage' && <Wastage />}
                         {activeTab === 'inventory_reports' && <InventoryReports />}
-                        {activeTab === 'stock_summary' && <StockSummary />}
+                        {/* {activeTab === 'stock_summary' && <StockSummary />} */}
                         {activeTab === 'purchase_return' && <PurchaseReturn />}
                         {activeTab === 'menu_management' && <MenuManagement />}
                     </Suspense>
 
                     {/* Placeholder for future POS modules */}
                     {!['operations', 'dashboard', 'billing', 'tables', 'kitchen_view', 'online_orders', 'order_history', 'print_config', 'inventory',
-                        'stock_purchase', 'purchase_order', 'purchase_return', 'available_stock', 'closing_stock', 'stock_transfer', 'wastage', 'inventory_reports', 'stock_summary'
+                        'stock_purchase', 'purchase_order', 'purchase_return', 'available_stock', 'closing_stock', 'stock_transfer', 'wastage', 'inventory_reports', 'stock_summary', 'menu_management'
                     ].includes(activeTab) && (
                             <div className="flex flex-col items-center justify-center h-full text-gray-400">
                                 <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-4xl">
