@@ -23,7 +23,7 @@ export function Operations({ onNavigate }) {
     ];
 
     const configModules = [
-        { id: 'print_config', title: 'Outlet Configuration', icon: Settings, color: 'text-gray-700' },
+        { id: 'print_config', title: 'Printer Configuration', icon: Printer, color: 'text-gray-700' },
     ];
 
     return (

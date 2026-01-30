@@ -324,16 +324,63 @@ export const menuService = {
 
         console.log('[SYNC] Sync complete:', categories.length, 'categories,', items.length, 'items');
         return { categories, items };
-    }
+    },
+
+    // Expanded CRUD methods for Menu Management (Online First)
+    createCategory: (data) => api.post('/menu/categories', data),
+    deleteCategory: (id) => api.delete(`/menu/categories/${id}`),
+
+    createItem: (data) => api.post('/menu/items', data),
+    updateItem: (id, data) => api.put(`/menu/items/${id}`, data),
+    deleteItem: (id) => api.delete(`/menu/items/${id}`),
+    updateStatus: (id, data) => api.patch(`/menu/items/${id}/status`, data),
+    updateBulkStatus: (data) => api.post('/menu/items/bulk-status', data),
+    importFullMenu: (data) => api.post('/menu/items/import-full', data),
+    exportFullMenu: () => api.get('/menu/items/export'),
+    reorder: (type, updates) => api.post('/menu/reorder', { type, updates }),
+
+    getVariants: () => api.get('/menu/variants'),
+    createVariant: (data) => api.post('/menu/variants', data),
+    deleteVariant: (id) => api.delete(`/menu/variants/${id}`),
+
+    getAddons: () => api.get('/menu/addons'),
+    createAddon: (data) => api.post('/menu/addons', data),
+    deleteAddon: (id) => api.delete(`/menu/addons/${id}`),
 };
 
 export const specialNoteService = {
     getAll: () => api.get('/special-notes'),
     create: (data) => api.post('/special-notes', data),
+    update: (id, data) => api.put(`/special-notes/${id}`, data),
+    delete: (id) => api.delete(`/special-notes/${id}`),
+    toggleStatus: (id) => api.patch(`/special-notes/${id}/toggle`),
 };
 
 export const configService = {
     getTables: () => api.get('/config/tables'),
+    createTable: (data) => api.post('/config/tables', data),
+    deleteTable: (id) => api.delete(`/config/tables/${id}`),
+
+    getTaxes: () => api.get('/config/taxes'),
+    createTax: (data) => api.post('/config/taxes', data),
+    deleteTax: (id) => api.delete(`/config/taxes/${id}`),
+
+    getDiscounts: () => api.get('/config/discounts'),
+    createDiscount: (data) => api.post('/config/discounts', data),
+    deleteDiscount: (id) => api.delete(`/config/discounts/${id}`),
+};
+
+export const groupService = {
+    getAddonGroups: () => api.get('/groups/addon-groups'),
+    createAddonGroup: (data) => api.post('/groups/addon-groups', data),
+    deleteAddonGroup: (id) => api.delete(`/groups/addon-groups/${id}`),
+
+    // Variation Groups
+    getVariationGroups: () => api.get('/groups/variation-groups'),
+    createVariationGroup: (data) => api.post('/groups/variation-groups', data),
+    updateVariationGroup: (id, data) => api.put(`/groups/variation-groups/${id}`, data),
+    deleteVariationGroup: (id) => api.delete(`/groups/variation-groups/${id}`),
+    assignGroups: (data) => api.post('/groups/assign-groups', data),
 };
 
 export const outletService = {

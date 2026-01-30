@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Printer, RefreshCw, ChefHat, Plus, Trash2 } from 'lucide-react';
+import { Save, Printer, RefreshCw, ChefHat, Plus, Trash2, Settings as SettingsIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function Settings() {
@@ -44,9 +44,12 @@ export function Settings() {
     const loadPrinters = async () => {
         setLoading(true);
         try {
-            if (window.electronAPI) {
-                const list = await window.electronAPI.getPrinters();
-                setPrinters(list);
+            if (window.electronAPI && window.electronAPI.getPrinters) {
+                const list = await window.electronAPI.getPrinters().catch(err => {
+                    console.error("Error fetching printers:", err);
+                    return [];
+                });
+                setPrinters(list || []);
             } else {
                 console.warn("Electron API not available");
                 // Mock for web dev if needed
@@ -70,7 +73,7 @@ export function Settings() {
         <div className="p-6 max-w-4xl mx-auto h-full overflow-y-auto">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <Settings className="w-6 h-6 text-orange-600" />
+                    <SettingsIcon className="w-6 h-6 text-orange-600" />
                     Outlet Configuration
                 </h2>
 

@@ -1,17 +1,18 @@
 import React, { useState, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { Settings } from './components/Settings';
 // Lazy Load Heavy Components
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
 const Billing = React.lazy(() => import('./components/Billing'));
 const TableManagement = React.lazy(() => import('./components/TableManagement'));
 const KotManagement = React.lazy(() => import('./components/KotManagement'));
 const OrderHistory = React.lazy(() => import('./components/OrderHistory').then(module => ({ default: module.OrderHistory })));
-const Settings = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
 const Operations = React.lazy(() => import('./components/Operations').then(module => ({ default: module.Operations })));
 const RunningOrders = React.lazy(() => import('./components/RunningOrders').then(module => ({ default: module.RunningOrders })));
 const OnlineOrders = React.lazy(() => import('./components/OnlineOrders').then(module => ({ default: module.OnlineOrders })));
 const Inventory = React.lazy(() => import('./components/Inventory'));
+const MenuManagement = React.lazy(() => import('./components/MenuManagement').then(module => ({ default: module.MenuManagement })));
 // Lazy load inventory sub-modules
 const PosInventory = React.lazy(() => import('./components/PosInventoryModules').then(module => ({ default: () => null }))); // Dummy for preloading? No, let's just use direct imports inside the render or lazy load the container.
 // Actually, since they are named exports, we can do:
@@ -157,6 +158,7 @@ function AppContent() {
                         {activeTab === 'inventory_reports' && <InventoryReports />}
                         {activeTab === 'stock_summary' && <StockSummary />}
                         {activeTab === 'purchase_return' && <PurchaseReturn />}
+                        {activeTab === 'menu_management' && <MenuManagement />}
                     </Suspense>
 
                     {/* Placeholder for future POS modules */}

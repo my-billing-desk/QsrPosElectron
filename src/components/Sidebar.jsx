@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, PlayCircle, FolderOpen, Clock, Printer, FileText, ChefHat, ChevronRight, ChevronLeft, LogOut, RotateCcw, ShoppingBag,
-    ShoppingCart, BarChart2, PieChart, ArrowRightLeft, Trash2, Package, ClipboardCheck, ChevronDown, Layers
+    ShoppingCart, BarChart2, PieChart, ArrowRightLeft, Trash2, Package, ClipboardCheck, ChevronDown, Layers, Settings
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +28,10 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
         'stock_transfer': [19],
         'wastage': [18],
         'inventory_reports': [10],
-        'stock_summary': [10]
+        'inventory_reports': [10],
+        'stock_summary': [10],
+        'print_config': [30, 140],
+        'menu_management': [30, 140] // Assuming admin permissions for now
     };
 
     const hasPermission = (item) => {
@@ -54,7 +57,9 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
             id: 'pos_main',
             title: 'POS Operations',
             items: [
-                { id: 'operations', label: 'Operations', icon: LayoutDashboard }
+                { id: 'operations', label: 'Operations', icon: LayoutDashboard },
+                { id: 'print_config', label: 'Outlet Configuration', icon: Printer },
+                { id: 'menu_management', label: 'Menu Management', icon: ChefHat }
             ]
         }
     ];
@@ -154,13 +159,21 @@ export function Sidebar({ activeTab, onTabChange, isCollapsed, toggleSidebar, on
     return (
         <div className={`${isCollapsed ? 'w-20' : 'w-72'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 shadow-xl z-20`}>
             {/* Header */}
-            <div onClick={toggleSidebar} className={`h-16 shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all cursor-pointer`}>
+            <div className={`h-16 shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all relative`}>
                 <div
-                    className={`${isCollapsed ? 'w-10 h-10' : 'w-auto px-3 py-2'} rounded-lg flex items-center justify-center text-white font-bold transition-all shadow-md active:scale-95`}
+                    className={`${isCollapsed ? 'w-10 h-10' : 'w-auto px-3 py-2'} rounded-lg flex items-center justify-center text-white font-bold transition-all shadow-md`}
                     style={{ backgroundColor: 'var(--color-primary)' }}
                 >
                     {isCollapsed ? 'Q' : 'QSR POS'}
                 </div>
+
+                {/* Collapse Toggle Arrow */}
+                <button
+                    onClick={toggleSidebar}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full flex items-center justify-center shadow-sm text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all z-50"
+                >
+                    {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+                </button>
             </div>
 
             {/* Scrollable Nav */}
