@@ -65,7 +65,8 @@ export const usePOSDeviceRegistration = () => {
                     }
                 };
 
-                const response = await fetch('http://localhost:5001/api/pos-devices/register', {
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                const response = await fetch(`${API_URL}/pos-devices/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -86,16 +87,17 @@ export const usePOSDeviceRegistration = () => {
         };
 
         const startHeartbeat = (deviceId, token) => {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
             // Send heartbeat every 2 minutes
             const heartbeatInterval = setInterval(async () => {
                 try {
-                    await fetch('http://localhost:5001/api/pos-devices/heartbeat', {
+                    await fetch(`${API_URL}/pos-devices/heartbeat`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({ deviceId })
+                        body: JSON.stringify({ code: deviceId }) // Backend expects 'code'
                     });
                 } catch (error) {
                     console.error('Heartbeat failed:', error);
